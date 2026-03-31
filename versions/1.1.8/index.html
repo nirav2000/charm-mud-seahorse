@@ -35,10 +35,9 @@
       .arrow-label{position:absolute;font-size:.72rem;font-weight:700;color:#3e4f77;white-space:nowrap;background:rgba(255,255,255,.86);padding:0 2px}
       .arrow-path{stroke:rgba(61,79,122,.88);stroke-width:1.8;fill:none;marker-end:url(#arrowhead)}
 
-      .legend{display:flex;flex-wrap:wrap;gap:8px}
-      .legend-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:999px;background:#f6f8ff;border:1px solid #d9e2f7}
+      .legend{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}
+      .legend-item{display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:10px;background:#f6f8ff}
       .legend-dot{width:14px;height:14px;border-radius:4px;border:1px solid rgba(0,0,0,.16)}
-      .legend-item .term{font-weight:700}
 
       .floating-help{position:fixed;z-index:25;min-width:260px;max-width:320px;background:#fff;border:1px solid #cfd9f2;border-radius:10px;box-shadow:0 12px 24px rgba(20,36,80,.2);padding:10px;display:none}
       .floating-help h4{margin:0 0 4px}.floating-help p{margin:3px 0;font-size:.9rem}
@@ -91,7 +90,7 @@
         <div id="legend" class="legend"></div>
       </section>
 
-      <footer><button id="version-button" type="button" aria-haspopup="dialog" aria-controls="version-modal">Version <span id="version-label">1.1.9</span></button></footer>
+      <footer><button id="version-button" type="button" aria-haspopup="dialog" aria-controls="version-modal">Version <span id="version-label">1.1.8</span></button></footer>
     </main>
 
     <div id="floating-help" class="floating-help"></div>
@@ -104,9 +103,9 @@
       </div>
     </div>
 
-    <script src="versioning.js"></script>
+    <script src="../../versioning.js"></script>
     <script>
-      const CURRENT_VERSION = "1.1.9";
+      const CURRENT_VERSION = "1.1.8";
       let sentences = [];
       const TAG_ORDER=["article","noun","pronoun","verb","adjective","adverb","determiner","preposition","conjunction","interjection","unknown"];
       const settingDefs=[
@@ -135,45 +134,18 @@
         return t;
       }
       function getWordClass(word,doc){const n=normalizeWord(word);if(!n)return'unknown';if(doc.match(n).has('#Pronoun'))return'pronoun';if(doc.match(n).has('#Verb'))return'verb';if(doc.match(n).has('#Noun'))return'noun';if(doc.match(n).has('#Adjective'))return'adjective';if(doc.match(n).has('#Adverb'))return'adverb';if(['the','a','an'].includes(n))return'article';if(manualRules.prepositions.includes(n))return'preposition';if(manualRules.conjunctions.includes(n))return'conjunction';if(manualRules.determiners.includes(n))return'determiner';if(manualRules.interjections.includes(n))return'interjection';return'unknown';}
-      function renderLegend(){legend.innerHTML=TAG_ORDER.map((t)=>`<div class="legend-item"><span class="legend-dot ${t}"></span><span class="term ${t}">${t}</span></div>`).join('');}
+      function renderLegend(){legend.innerHTML=TAG_ORDER.map((t)=>`<div class="legend-item"><span class="legend-dot ${t}"></span><span class="${t}">${t}</span></div>`).join('');}
       function identifyGrammar(sentence){const words=sentence.match(/\S+/g)||[];const doc=nlp(sentence);return words.map((w,i)=>{const c=getWordClass(w,doc);const label=settings.labels?`<span class="token-label">${c}</span>`:'';return `<span class="token" data-index="${i}" data-pos="${c}"><span class="token-word ${c}">${w}</span>${label}</span>`;});}
 
       function showFloatingHelp(tag,x,y){const g=glossary[tag]||glossary.unknown;floatingHelp.innerHTML=`<h4>${tag}</h4><p><strong>Definition:</strong> ${g.definition}</p><p><strong>Example:</strong> ${g.example}</p><p><strong>Misconception:</strong> ${g.misconception}</p>`;floatingHelp.style.display='block';floatingHelp.style.left=`${Math.min(window.innerWidth-340,x+14)}px`;floatingHelp.style.top=`${Math.max(16,y-10)}px`;}
 
-      function renderArrowLayer(sentenceNode){
-        sentenceNode.parentElement.querySelectorAll('.arrow-layer,.arrow-label').forEach(n=>n.remove());
-        if(!settings.curvy)return;
-        const tokens=[...sentenceNode.querySelectorAll('.token')];
-        if(!tokens.length)return;
-
-        const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
-        svg.setAttribute('class','arrow-layer');
-        svg.innerHTML='<defs><marker id="arrowhead" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="rgba(61,79,122,.88)"/></marker></defs>';
-
-        const hostRect=sentenceNode.parentElement.getBoundingClientRect();
-        tokens.forEach((t,i)=>{
-          const wr=t.querySelector('.token-word').getBoundingClientRect();
-          const x=wr.left-hostRect.left+wr.width/2;
-          const y=wr.top-hostRect.top+wr.height/2;
-
-          const placeTop = i % 2 === 0;
-          const labelX = x + ((i%3)-1)*16;
-          const labelY = placeTop ? 16 + (i%2)*4 : hostRect.height - 12 - (i%2)*4;
-          const ctrlY = placeTop ? y-42 : y+42;
-
-          const path=document.createElementNS('http://www.w3.org/2000/svg','path');
-          path.setAttribute('d',`M ${labelX} ${labelY+2} Q ${x} ${ctrlY} ${x} ${y}`);
-          path.setAttribute('class','arrow-path');
-          svg.appendChild(path);
-
-          const lbl=document.createElement('div');
-          lbl.className='arrow-label';
-          lbl.style.left=`${labelX-20}px`;
-          lbl.style.top=`${labelY-14}px`;
-          lbl.textContent=t.dataset.pos;
-          sentenceNode.parentElement.appendChild(lbl);
+      function renderArrowLayer(sentenceNode){sentenceNode.parentElement.querySelectorAll('.arrow-layer,.arrow-label').forEach(n=>n.remove());if(!settings.curvy)return;const tokens=[...sentenceNode.querySelectorAll('.token')];if(!tokens.length)return;const rect=sentenceNode.parentElement.getBoundingClientRect();
+        const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('class','arrow-layer');svg.innerHTML='<defs><marker id="arrowhead" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="rgba(61,79,122,.88)"/></marker></defs>';
+        const positions=['top','bottom','left','right'];
+        tokens.forEach((t,i)=>{const wr=t.querySelector('.token-word').getBoundingClientRect();const x=wr.left-rect.left+wr.width/2;const y=wr.top-rect.top+wr.height/2;const pos=positions[i%4];let sx=x,sy=12;if(pos==='top'){sx=x+((i%3)-1)*38;sy=10+(i%2)*8;}if(pos==='bottom'){sx=x+((i%3)-1)*34;sy=rect.height-8;}if(pos==='left'){sx=8;sy=y-22+(i%3)*16;}if(pos==='right'){sx=rect.width-8;sy=y-18+(i%3)*14;}const cx=(sx+x)/2+((i%2)?18:-18);const cy=(sy+y)/2-14;
+          const p=document.createElementNS('http://www.w3.org/2000/svg','path');p.setAttribute('d',`M ${sx} ${sy} Q ${cx} ${cy} ${x} ${y}`);p.setAttribute('class','arrow-path');svg.appendChild(p);
+          const lbl=document.createElement('div');lbl.className='arrow-label';lbl.style.left=`${sx+(pos==='right'?-56:4)}px`;lbl.style.top=`${sy-16}px`;lbl.textContent=t.dataset.pos;sentenceNode.parentElement.appendChild(lbl);
         });
-
         sentenceNode.parentElement.appendChild(svg);
       }
 
@@ -192,7 +164,7 @@
       document.getElementById('random-btn').addEventListener('click',useRandomSentence);
       wordInput.addEventListener('input',checkWord);
 
-      renderLegend();renderSettingButtons();useRandomSentence();initVersioning({ currentVersion: CURRENT_VERSION, rootPrefix: "" });
+      renderLegend();renderSettingButtons();useRandomSentence();initVersioning({ currentVersion: CURRENT_VERSION, rootPrefix: "../../" });
     </script>
   </body>
 </html>

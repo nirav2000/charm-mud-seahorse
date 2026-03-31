@@ -1,5 +1,11 @@
 # Version History
 
+## 1.1.9 - 2026-03-31
+- Fixed arrow/label overlap by re-anchoring labels close to their own words with shorter paths.
+- Prevented far-away grammatical labels by constraining label placement near each token.
+- Improved grammar key layout to compact pill chips to remove awkward empty slots.
+- Archived `1.1.8` under `versions/1.1.8/`.
+
 ## 1.1.8 - 2026-03-31
 - Added a **toggleable no-highlight mode** (`Highlight` off) so users can remove highlighting entirely.
 - Improved label placement so labels appear directly under words (sub-label style).
