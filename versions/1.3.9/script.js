@@ -1,5 +1,5 @@
 const state = {
-  version: "1.3.10",
+  version: "1.3.9",
   settings: { autoPunctuate: true, showLabels: true, showConnectors: true },
   sentences: [],
   parsed: [],
@@ -216,33 +216,26 @@ function openPopoverForToken(idx) {
 
     el.wordPopover.classList.add("open", "is-measuring");
     const panelW = Math.min(360, Math.max(300, el.wordPopover.offsetWidth || 340));
-    const measuredH = Math.max(260, el.wordPopover.offsetHeight || 320);
+    const panelH = Math.max(260, el.wordPopover.offsetHeight || 320);
     el.wordPopover.classList.remove("open", "is-measuring");
 
-    const centeredLeftGlobal = tokenRect.left - panelW / 2 + tokenRect.width / 2;
-    const leftGlobal = Math.min(window.innerWidth - panelW - 8, Math.max(8, centeredLeftGlobal));
+    const centeredLeft = tokenRect.left - stageRect.left - panelW / 2 + tokenRect.width / 2;
+    const left = Math.min(stageRect.width - panelW - 10, Math.max(10, centeredLeft));
 
-    const belowSpace = window.innerHeight - sentenceRect.bottom - 12;
-    const aboveSpace = sentenceRect.top - 12;
+    const sentenceTop = sentenceRect.top - stageRect.top;
+    const sentenceBottom = sentenceRect.bottom - stageRect.top;
+    const aboveTop = sentenceTop - panelH - 14;
+    const belowTop = sentenceBottom + 14;
 
-    let placeBelow = belowSpace >= measuredH || belowSpace >= aboveSpace;
-    let panelH = measuredH;
+    const fitsBelowInsideStage = belowTop + panelH <= stageRect.height - 8;
+    const fitsAboveInsideStage = aboveTop >= 8;
 
-    if (placeBelow && belowSpace < measuredH) {
-      panelH = Math.max(180, belowSpace);
-    } else if (!placeBelow && aboveSpace < measuredH) {
-      panelH = Math.max(180, aboveSpace);
-    }
+    // Never overlap the sentence: place fully below if possible, otherwise fully above.
+    const top = fitsBelowInsideStage ? belowTop : (fitsAboveInsideStage ? aboveTop : aboveTop);
 
-    const topGlobal = placeBelow ? sentenceRect.bottom + 12 : sentenceRect.top - panelH - 12;
-
-    el.wordPopover.style.maxHeight = `${panelH}px`;
-    el.wordPopover.style.overflowY = 'auto';
-    el.wordPopover.style.left = `${leftGlobal - stageRect.left}px`;
-    el.wordPopover.style.top = `${topGlobal - stageRect.top}px`;
+    el.wordPopover.style.left = `${left}px`;
+    el.wordPopover.style.top = `${top}px`;
   } else {
-    el.wordPopover.style.maxHeight = '';
-    el.wordPopover.style.overflowY = '';
     el.wordPopover.style.left = "";
     el.wordPopover.style.top = "";
   }
@@ -277,16 +270,10 @@ function wireTokenEvents() {
     tokenLineListenersBound = true;
   }
 
-  let suppressNextTap = false;
-
   el.tokenLine.querySelectorAll(".token").forEach((token) => {
     const idx = Number(token.dataset.index);
     const setPreview = (on) => token.classList.toggle("preview", on && idx !== state.activeToken);
     const activate = () => {
-      if (suppressNextTap) {
-        suppressNextTap = false;
-        return;
-      }
       state.activeToken = idx;
       renderTokens(state.parsed);
       requestAnimationFrame(() => renderConnectors(state.parsed));
@@ -317,35 +304,6 @@ function wireTokenEvents() {
         activate();
       }
     });
-    let touchState = null;
-    token.addEventListener("touchstart", (e) => {
-      const t = e.changedTouches[0];
-      touchState = { startX: t.clientX, startY: t.clientY, dragging: false };
-    }, { passive: true });
-
-    token.addEventListener("touchmove", (e) => {
-      if (!touchState) return;
-      const t = e.changedTouches[0];
-      const moved = Math.hypot(t.clientX - touchState.startX, t.clientY - touchState.startY);
-      if (moved > 12) {
-        touchState.dragging = true;
-        e.preventDefault();
-      }
-    }, { passive: false });
-
-    token.addEventListener("touchend", (e) => {
-      if (!touchState?.dragging) {
-        touchState = null;
-        return;
-      }
-      const t = e.changedTouches[0];
-      const target = document.elementFromPoint(t.clientX, t.clientY)?.closest(".token");
-      const toIndex = target ? Number(target.dataset.index) : state.parsed.length - 1;
-      applyReorder(toIndex);
-      suppressNextTap = true;
-      touchState = null;
-      e.preventDefault();
-    }, { passive: false });
   });
 }
 

@@ -1,10 +1,3 @@
-## 1.3.10 - 2026-03-31
-- Improved word-popover placement logic so it never overlaps the sentence and stays on-screen by using available viewport space above/below the sentence region.
-- Added dynamic popover height clamping with internal scroll fallback when space is tight.
-- Added touch drag fallback for token reordering on iPad/Chrome via touch gesture handling and drop target detection.
-- Archived `1.3.9` under `versions/1.3.9/`.
-- Bumped runtime/app version metadata to `1.3.10`.
-
 ## 1.3.9 - 2026-03-31
 - Refined word popover placement so it never overlaps the sentence line: desktop positioning now forces the panel fully above or fully below the sentence region.
 - Upgraded popover visuals with gradient card styling, stronger border/shadow, improved close button, and structured field rows for readability.
