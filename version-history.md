@@ -1,5 +1,11 @@
 # Version History
 
+## 1.1.5 - 2026-03-31
+- Improved **display settings layout** so each option renders cleanly with title + helper text.
+- Added improved **curved-arrow annotation mode** with labels above words and curved pointers to each token.
+- Shifted to a more playful visual style (soft gradients, glassmorphism cards, richer color tone) to avoid a sterile/blocky look.
+- Updated markdown viewer to use `marked` for proper markdown rendering and made each version heading clickable.
+
 ## 1.1.4 - 2026-03-31
 - Added real-time grammar tagging while users type in the sentence box.
 - Added display settings: realtime on/off, color-text mode, inline labels, and curvy-arrow label row.
