@@ -1,0 +1,46 @@
+.grammar-part {
+  position: relative;
+}
+
+.grammar-part::after {
+  content: attr(data-grammar);
+  position: absolute;
+  background-color: lightyellow;
+  padding: 5px;
+  border: 1px solid gray;
+  border-radius: 5px;
+  display: none;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  z-index: 1;
+}
+
+.grammar-part:hover::after {
+  display: block;
+}
+
+.noun {
+    background-color: lightblue;
+}
+
+.verb {
+    background-color: lightgreen;
+}
+
+.adjective {
+    background-color: lightcoral;
+}
+
+.adverb {
+    background-color: lightsalmon;
+}
+
+.determiner {
+    background-color: lightcyan;
+}
+
+.preposition {
+    background-color: lightgoldenrodyellow;
+}
