@@ -14,6 +14,7 @@ const state = {
     historyOpen: false
   }
 };
+let tokenLineListenersBound = false;
 
 const glossary = {
   noun: { def: "A naming word.", does: "Names people, places, things, or ideas.", spot: "Can often follow an article like ‘the’.", mistakes: "Mixing nouns with verbs.", links: "pronoun, adjective" },
@@ -246,11 +247,14 @@ function wireTokenEvents() {
     closePopover();
   };
 
-  el.tokenLine.addEventListener("dragover", (e) => e.preventDefault());
-  el.tokenLine.addEventListener("drop", (e) => {
-    e.preventDefault();
-    applyReorder(state.parsed.length - 1);
-  }, { once: true });
+  if (!tokenLineListenersBound) {
+    el.tokenLine.addEventListener("dragover", (e) => e.preventDefault());
+    el.tokenLine.addEventListener("drop", (e) => {
+      e.preventDefault();
+      applyReorder(state.parsed.length - 1);
+    });
+    tokenLineListenersBound = true;
+  }
 
   el.tokenLine.querySelectorAll(".token").forEach((token) => {
     const idx = Number(token.dataset.index);
@@ -348,7 +352,7 @@ function initPracticeState(parsed) {
     dragWord: null,
     rebuildTarget: [],
     rebuildBank: shuffle(parsed.map((p) => p.word)),
-    sortBank: parsed.map((p) => ({ word: p.word, pos: p.pos })),
+    sortBank: parsed.map((p) => ({ id: p.index, word: p.word, pos: p.pos })),
     sortBins: { noun: [], verb: [], adjective: [], adverb: [], other: [] }
   };
 }
@@ -372,8 +376,8 @@ function renderSortTab() {
   const bins = ["noun","verb","adjective","adverb","other"];
   document.getElementById("tab-sort").innerHTML = `
     <p>Tap a word, then tap a grammar bin (drag also works on desktop).</p>
-    ${bins.map((b)=>`<div class="bin" data-bin="${b}"><strong>${b}</strong> ${state.practice.sortBins[b].map(w => `<span>${w}</span>`).join("")}</div>`).join("")}
-    <div id="sort-bank">${state.practice.sortBank.map((p)=>`<span class="draggable" draggable="true" data-practice="sort-bank" data-word="${p.word}" data-pos="${p.pos}">${p.word}</span>`).join("")}</div>
+    ${bins.map((b)=>`<div class="bin" data-bin="${b}"><strong>${b}</strong> ${state.practice.sortBins[b].map((entry) => `<span>${entry.word}</span>`).join("")}</div>`).join("")}
+    <div id="sort-bank">${state.practice.sortBank.map((p)=>`<span class="draggable" draggable="true" data-practice="sort-bank" data-id="${p.id}" data-word="${p.word}" data-pos="${p.pos}">${p.word}</span>`).join("")}</div>
     <div class="actions">
       <button class="btn secondary" data-action="sort-check">Check</button>
       <button class="btn ghost" data-action="sort-reset">Reset</button>
@@ -512,9 +516,9 @@ function resetRebuild() {
 function checkSort() {
   let correct = 0;
   const total = state.parsed.length;
-  Object.entries(state.practice.sortBins).forEach(([bin, words]) => {
-    words.forEach((word) => {
-      const item = state.parsed.find((p) => p.word === word);
+  Object.entries(state.practice.sortBins).forEach(([bin, entries]) => {
+    entries.forEach((entry) => {
+      const item = state.parsed.find((p) => p.index === entry.id);
       const expected = ["noun","verb","adjective","adverb"].includes(item?.pos) ? item.pos : "other";
       if (bin === expected) correct += 1;
     });
@@ -523,7 +527,7 @@ function checkSort() {
 }
 
 function resetSort() {
-  state.practice.sortBank = state.parsed.map((p) => ({ word: p.word, pos: p.pos }));
+  state.practice.sortBank = state.parsed.map((p) => ({ id: p.index, word: p.word, pos: p.pos }));
   state.practice.sortBins = { noun: [], verb: [], adjective: [], adverb: [], other: [] };
   state.practice.selectedWord = null;
   renderSortTab();
@@ -531,27 +535,34 @@ function resetSort() {
 
 function initPracticeInteractions() {
   let dragPayload = null;
+  const extractSortChipEntry = (chip) => {
+    const id = Number(chip?.dataset.id);
+    if (!Number.isInteger(id)) return null;
+    return { id, word: chip.dataset.word, pos: chip.dataset.pos };
+  };
   const placeIntoRebuild = (word) => {
     if (!state.practice.rebuildBank.includes(word)) return;
     removeFirst(state.practice.rebuildBank, word);
     state.practice.rebuildTarget.push(word);
     renderRebuildTab();
   };
-  const placeIntoSortBin = (word, binName) => {
-    const entry = state.practice.sortBank.find((p) => p.word === word);
+  const placeIntoSortBin = (id, binName) => {
+    const entry = state.practice.sortBank.find((p) => p.id === id);
     if (!entry) return;
-    state.practice.sortBank = state.practice.sortBank.filter((p) => !(p.word === word && p.pos === entry.pos));
-    state.practice.sortBins[binName].push(word);
+    state.practice.sortBank = state.practice.sortBank.filter((p) => p.id !== id);
+    state.practice.sortBins[binName].push(entry);
     renderSortTab();
   };
 
   el.practiceCard.addEventListener("dragstart", (e) => {
     const chip = e.target.closest(".draggable[data-word]");
     if (!chip) return;
-    dragPayload = { word: chip.dataset.word, pos: chip.dataset.pos, source: chip.dataset.practice };
+    const sortEntry = chip.dataset.practice === "sort-bank" ? extractSortChipEntry(chip) : null;
+    dragPayload = { word: chip.dataset.word, pos: chip.dataset.pos, source: chip.dataset.practice, id: sortEntry?.id ?? null };
     state.practice.dragWord = chip.dataset.word;
     e.dataTransfer.effectAllowed = "copyMove";
     e.dataTransfer.setData("text/plain", chip.dataset.word);
+    if (sortEntry) e.dataTransfer.setData("application/json", JSON.stringify(sortEntry));
   });
   el.practiceCard.addEventListener("dragover", (e) => {
     const targetEl = e.target.nodeType === 1 ? e.target : e.target.parentElement;
@@ -563,13 +574,22 @@ function initPracticeInteractions() {
     const rebuildZone = targetEl?.closest("#rebuild-zone");
     if (!targetBin && !rebuildZone) return;
     e.preventDefault();
+    const droppedSortEntry = (() => {
+      if (Number.isInteger(dragPayload?.id)) return { id: dragPayload.id };
+      try {
+        const fromTransfer = JSON.parse(e.dataTransfer.getData("application/json"));
+        if (Number.isInteger(fromTransfer?.id)) return { id: fromTransfer.id };
+      } catch (_) {}
+      return null;
+    })();
     const draggedWord = dragPayload?.word || state.practice.dragWord || e.dataTransfer.getData("text/plain");
-    if (!draggedWord) return;
+    if (!draggedWord && !droppedSortEntry) return;
     if (rebuildZone) {
       placeIntoRebuild(draggedWord);
     }
     if (targetBin) {
-      placeIntoSortBin(draggedWord, targetBin.dataset.bin);
+      const targetId = droppedSortEntry?.id;
+      if (Number.isInteger(targetId)) placeIntoSortBin(targetId, targetBin.dataset.bin);
     }
     dragPayload = null;
     state.practice.dragWord = null;
@@ -604,12 +624,14 @@ function initPracticeInteractions() {
       return;
     }
     if (chip && chip.dataset.practice === "sort-bank") {
-      state.practice.selectedWord = { word: chip.dataset.word, pos: chip.dataset.pos };
-      el.practiceCard.querySelectorAll(".draggable[data-practice='sort-bank']").forEach((n) => n.classList.toggle("active", n.dataset.word === chip.dataset.word));
+      const entry = extractSortChipEntry(chip);
+      if (!entry) return;
+      state.practice.selectedWord = entry;
+      el.practiceCard.querySelectorAll(".draggable[data-practice='sort-bank']").forEach((n) => n.classList.toggle("active", Number(n.dataset.id) === entry.id));
       return;
     }
     if (bin && state.practice.selectedWord) {
-      placeIntoSortBin(state.practice.selectedWord.word, bin.dataset.bin);
+      placeIntoSortBin(state.practice.selectedWord.id, bin.dataset.bin);
       state.practice.selectedWord = null;
     }
   });
