@@ -5,212 +5,112 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Interactive grammar highlighter with real-time tagging, curved arrow annotations, and version history."
+      content="Interactive grammar playground with real-time tagging, natural sentence mode, glossary help, and version history."
     />
     <title>Grammar Highlighter</title>
     <script src="https://unpkg.com/compromise"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
-      :root {
-        --ink: #1a2238;
-        --muted: #5f6b86;
-      }
+      :root { --ink:#1b2238; --muted:#5f6d87; }
       body {
-        margin: 0;
-        font-family: "Nunito", "Segoe UI", Arial, sans-serif;
-        color: var(--ink);
+        margin:0;
+        font-family:"Nunito","Segoe UI",Arial,sans-serif;
+        color:var(--ink);
         background:
-          radial-gradient(circle at 5% 10%, #fff2e4 0, transparent 35%),
-          radial-gradient(circle at 90% 0%, #e4f5ff 0, transparent 34%),
-          radial-gradient(circle at 80% 90%, #eefde9 0, transparent 28%),
-          #f8fbff;
+          radial-gradient(circle at 8% 12%, #fff3e7 0, transparent 32%),
+          radial-gradient(circle at 92% 6%, #e8f6ff 0, transparent 30%),
+          radial-gradient(circle at 84% 90%, #ecfbe4 0, transparent 26%),
+          #f7fbff;
       }
-      .app {
-        max-width: 1080px;
-        margin: 22px auto;
-        padding: 0 16px 24px;
+      .app{max-width:1120px;margin:20px auto;padding:0 16px 24px;}
+      .hero,.panel{
+        background:linear-gradient(150deg,rgba(255,255,255,.9),rgba(255,255,255,.76));
+        border:1px solid rgba(183,198,235,.45);
+        border-radius:20px;
+        box-shadow:0 12px 30px rgba(33,58,122,.08);
       }
-      .hero,
-      .panel {
-        background: linear-gradient(145deg, rgba(255,255,255,.88), rgba(255,255,255,.72));
-        backdrop-filter: blur(3px);
-        border: 1px solid rgba(180, 197, 236, 0.4);
-        border-radius: 20px;
-        box-shadow: 0 12px 30px rgba(33, 58, 122, 0.08);
-      }
-      .hero { padding: 22px; margin-bottom: 12px; }
-      .hero h1 { margin: 0; font-size: 2.1rem; }
-      .hero p { margin: 8px 0 0; color: var(--muted); }
-      .panel { padding: 16px; margin-bottom: 12px; }
+      .hero{padding:22px;margin-bottom:12px;}
+      .hero h1{margin:0;font-size:2.1rem;}
+      .hero p{margin:8px 0 0;color:var(--muted)}
+      .panel{padding:16px;margin-bottom:12px;}
 
-      .controls {
-        display: grid;
-        grid-template-columns: 1fr auto auto;
-        gap: 10px;
-        align-items: start;
-      }
-      textarea,
-      input {
-        width: 100%;
-        border: 1px solid #c6d3f3;
-        border-radius: 12px;
-        font-family: inherit;
-        font-size: 1rem;
-        padding: 10px 12px;
-        box-sizing: border-box;
-        background: rgba(255, 255, 255, 0.92);
-      }
-      textarea { min-height: 90px; resize: vertical; }
-      button {
-        border: none;
-        border-radius: 12px;
-        padding: 10px 14px;
-        cursor: pointer;
-        font-weight: 700;
-        background: linear-gradient(120deg, #3562ff, #4f74ff);
-        color: white;
-      }
-      button.secondary { background: linear-gradient(120deg, #5d6b89, #7180a2); }
+      .controls{display:grid;grid-template-columns:1fr auto auto auto;gap:10px;align-items:start;}
+      textarea,input{width:100%;box-sizing:border-box;border:1px solid #c4d2f2;border-radius:12px;padding:10px 12px;font-size:1rem;font-family:inherit;background:#fff;}
+      textarea{min-height:92px;resize:vertical;}
+      button{border:none;border-radius:12px;padding:10px 14px;font-weight:700;color:#fff;background:linear-gradient(120deg,#355fff,#4f74ff);cursor:pointer;}
+      button.secondary{background:linear-gradient(120deg,#5f6b89,#7080a3);}
+      #status{color:var(--muted);margin:8px 0 0;}
 
-      #status { color: var(--muted); margin: 8px 0 0; }
+      .sentence-wrap{position:relative;margin-top:10px;padding-top:56px;}
+      .sentence{line-height:2.1;font-size:2rem;font-weight:800;word-spacing:3px;}
+      .token{display:inline-flex;flex-direction:column;align-items:center;position:relative;padding:0 2px;min-width:14px;}
+      .token-word{line-height:1.05;border-radius:6px;padding:0 3px;}
+      .token-label{font-size:.72rem;color:#4e5c78;margin-top:2px;line-height:1;}
+      .natural-mode .sentence{font-size:1.95rem;word-spacing:normal;letter-spacing:normal;line-height:1.7;}
+      .natural-mode .token{display:inline;min-width:0;}
+      .natural-mode .token-label{display:block;font-size:.68rem;text-align:center;margin-top:3px;}
 
-      .sentence {
-        line-height: 2.7;
-        font-size: 2rem;
-        font-weight: 800;
-        margin-top: 10px;
-        word-spacing: 4px;
-      }
-      .token {
-        position: relative;
-        display: inline;
-        padding: 0 2px;
-        border-radius: 6px;
-      }
-      .token-label-inline {
-        font-size: 0.66rem;
-        vertical-align: super;
-        margin-left: 2px;
-        color: #4d5a77;
-      }
+      .arrow-svg{position:absolute;left:0;top:0;width:100%;height:56px;overflow:visible;pointer-events:none;}
+      .arrow-label{font-size:12px;fill:#3d4f7a;font-weight:700;}
+      .arrow-path{stroke:rgba(61,79,122,.85);stroke-width:1.7;fill:none;}
 
-      .arrow-mode .token {
-        padding-top: 16px;
-      }
-      .arrow-mode .token[data-pos]::before {
-        content: attr(data-pos);
-        position: absolute;
-        left: 50%;
-        transform: translateX(-50%);
-        top: -14px;
-        font-size: 0.64rem;
-        font-weight: 700;
-        color: #3f4e72;
-        white-space: nowrap;
-      }
-      .arrow-mode .token[data-pos]::after {
-        content: "";
-        position: absolute;
-        left: 50%;
-        top: -2px;
-        width: 18px;
-        height: 12px;
-        border-left: 2px solid rgba(62, 78, 120, 0.65);
-        border-bottom: 2px solid rgba(62, 78, 120, 0.65);
-        border-radius: 0 0 0 14px;
-        transform: translateX(-2px) rotate(-20deg);
-      }
+      .settings-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;}
+      .setting-item{display:flex;gap:10px;align-items:flex-start;background:rgba(243,248,255,.92);border:1px solid #d4def7;padding:10px;border-radius:12px;}
+      .setting-item input{width:18px;height:18px;margin-top:3px;}
+      .setting-copy strong{display:block;font-size:.94rem;}
+      .setting-copy span{font-size:.84rem;color:#687592;}
 
-      .settings-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 10px;
-      }
-      .setting-item {
-        background: rgba(243, 248, 255, 0.92);
-        border: 1px solid #d4def7;
-        border-radius: 12px;
-        padding: 10px;
-        display: flex;
-        align-items: flex-start;
-        gap: 10px;
-      }
-      .setting-item input { width: 18px; height: 18px; margin-top: 3px; }
-      .setting-copy strong { display: block; font-size: 0.95rem; }
-      .setting-copy span { font-size: 0.84rem; color: #6a7691; }
+      .legend{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;}
+      .legend-item{display:flex;align-items:center;gap:8px;font-size:.9rem;padding:6px 8px;border-radius:10px;background:rgba(245,248,255,.85);}
+      .legend-sample{font-weight:800;border-radius:6px;padding:0 6px;}
 
-      .legend {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 8px;
-      }
-      .legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; }
-      .swatch { width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,.15); }
+      .pronoun{color:#2e76c2;background:#e4f2ff}.verb{color:#1e8f5e;background:#e3fff1}.noun{color:#b72d49;background:#ffe5ec}
+      .article{color:#8f7a04;background:#fff5c6}.adjective{color:#a83895;background:#ffe3f7}.adverb{color:#646464;background:#ececec}
+      .preposition{color:#09799a;background:#dff6ff}.conjunction{color:#9b6b0f;background:#fcefc9}.determiner{color:#157f70;background:#defdf5}
+      .interjection{color:#6e4ca7;background:#efe4ff}.unknown{color:#4f5c73;background:#edf1f8}
+      .text-color-mode .token-word{background:transparent!important;padding:0}
 
-      .pronoun { color: #2e76c2; background: #e4f2ff; }
-      .verb { color: #1e8f5e; background: #e3fff1; }
-      .noun { color: #b72d49; background: #ffe5ec; }
-      .article { color: #8f7a04; background: #fff5c6; }
-      .adjective { color: #a83895; background: #ffe3f7; }
-      .adverb { color: #646464; background: #ececec; }
-      .preposition { color: #09799a; background: #dff6ff; }
-      .conjunction { color: #9b6b0f; background: #fcefc9; }
-      .determiner { color: #157f70; background: #defdf5; }
-      .interjection { color: #6e4ca7; background: #efe4ff; }
-      .unknown { color: #4f5c73; background: #edf1f8; }
-      .text-color-mode .token { background: transparent !important; }
+      .hover-help{margin-top:10px;padding:12px;border-radius:12px;background:rgba(246,250,255,.95);border:1px solid #d9e3fa;}
+      .hover-help h4{margin:0 0 6px;}
+      .hover-help p{margin:4px 0;font-size:.94rem;}
 
-      footer { margin-top: 16px; border-top: 1px solid #d7e2f7; padding-top: 12px; }
-      #version-button { background: #f3f7ff; color: #223; border: 1px solid #bdc7e9; border-radius: 999px; }
-      #version-modal { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none; align-items: center; justify-content: center; z-index: 10; }
-      #version-modal.open { display: flex; }
-      .modal-content { width: min(900px, 94vw); max-height: 86vh; overflow-y: auto; background: #fff; border-radius: 12px; padding: 16px; }
-      .modal-header { display: flex; justify-content: space-between; align-items: center; }
-      .modal-close { border: none; background: transparent; color: #222; font-size: 24px; cursor: pointer; }
-      .version-controls { margin: 10px 0; display: flex; gap: 8px; }
+      footer{margin-top:16px;border-top:1px solid #d7e2f7;padding-top:12px}
+      #version-button{background:#f3f7ff;color:#223;border:1px solid #bdc7e9;border-radius:999px}
+      #version-modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:10}
+      #version-modal.open{display:flex}.modal-content{width:min(900px,94vw);max-height:86vh;overflow-y:auto;background:#fff;border-radius:12px;padding:16px}
+      .modal-header{display:flex;justify-content:space-between;align-items:center}.modal-close{border:none;background:transparent;color:#222;font-size:24px;cursor:pointer}
+      .version-controls{margin:10px 0;display:flex;gap:8px}
 
-      @media (max-width: 760px) {
-        .controls { grid-template-columns: 1fr; }
-        .sentence { font-size: 1.55rem; line-height: 2.3; }
-      }
+      @media(max-width:880px){.controls{grid-template-columns:1fr}.sentence{font-size:1.55rem;line-height:1.9}.sentence-wrap{padding-top:64px}}
     </style>
   </head>
   <body>
     <main class="app">
       <section class="hero">
         <h1>Grammar Playground ✨</h1>
-        <p>Write a sentence and watch grammar markers appear in real time.</p>
+        <p>Type a sentence and watch grammatical terms appear in realtime.</p>
       </section>
 
       <section class="panel">
         <div class="controls">
           <textarea id="sentence-input" placeholder="Type a sentence to analyze..."></textarea>
           <button id="analyze-btn" type="button">Analyze now</button>
+          <button id="punctuate-btn" type="button" class="secondary">Auto punctuate</button>
           <button id="random-btn" type="button" class="secondary">Use random sample</button>
         </div>
         <p id="status" role="status" aria-live="polite">Loading sentence…</p>
-        <div id="output"></div>
+        <div id="output" class="sentence-wrap"></div>
       </section>
 
       <section class="panel">
         <h3 style="margin:0 0 8px">Display settings</h3>
         <div class="settings-grid">
-          <label class="setting-item">
-            <input type="checkbox" id="setting-realtime" checked />
-            <span class="setting-copy"><strong>Realtime tagging</strong><span>Update grammar marks while typing.</span></span>
-          </label>
-          <label class="setting-item">
-            <input type="checkbox" id="setting-text-color" />
-            <span class="setting-copy"><strong>Color text only</strong><span>Use text color instead of highlighted backgrounds.</span></span>
-          </label>
-          <label class="setting-item">
-            <input type="checkbox" id="setting-labels" checked />
-            <span class="setting-copy"><strong>Inline labels</strong><span>Show tiny label text beside each word.</span></span>
-          </label>
-          <label class="setting-item">
-            <input type="checkbox" id="setting-curvy" />
-            <span class="setting-copy"><strong>Curved arrows</strong><span>Draw curved pointers with POS labels above words.</span></span>
-          </label>
+          <label class="setting-item"><input type="checkbox" id="setting-realtime" checked /><span class="setting-copy"><strong>Realtime tagging</strong><span>Apply grammar markers as you type.</span></span></label>
+          <label class="setting-item"><input type="checkbox" id="setting-text-color" /><span class="setting-copy"><strong>Color text only</strong><span>Use color on text instead of highlighted backgrounds.</span></span></label>
+          <label class="setting-item"><input type="checkbox" id="setting-labels" checked /><span class="setting-copy"><strong>Labels under words</strong><span>Show part-of-speech labels beneath each token.</span></span></label>
+          <label class="setting-item"><input type="checkbox" id="setting-curvy" /><span class="setting-copy"><strong>Curved arrows</strong><span>Draw curved arrows from words to grammar labels.</span></span></label>
+          <label class="setting-item"><input type="checkbox" id="setting-natural" checked /><span class="setting-copy"><strong>Natural sentence mode</strong><span>Use natural spacing and inline sentence flow.</span></span></label>
+          <label class="setting-item"><input type="checkbox" id="setting-auto-punctuate" /><span class="setting-copy"><strong>Auto punctuation</strong><span>Auto-capitalize and add end punctuation.</span></span></label>
         </div>
       </section>
 
@@ -225,9 +125,19 @@
         <div id="legend" class="legend"></div>
       </section>
 
+      <section class="panel">
+        <h3 style="margin-top:0">Grammar guide (hover help + quick definitions)</h3>
+        <div id="hover-help" class="hover-help">
+          <h4>Hover over a word to see details</h4>
+          <p><strong>Definition:</strong> —</p>
+          <p><strong>Example:</strong> —</p>
+          <p><strong>Common misconception:</strong> —</p>
+        </div>
+      </section>
+
       <footer>
         <button id="version-button" type="button" aria-haspopup="dialog" aria-controls="version-modal">
-          Version <span id="version-label">1.1.5</span>
+          Version <span id="version-label">1.1.6</span>
         </button>
       </footer>
     </main>
@@ -248,16 +158,29 @@
 
     <script src="versioning.js"></script>
     <script>
-      const CURRENT_VERSION = "1.1.5";
+      const CURRENT_VERSION = "1.1.6";
       let sentences = [];
       const TAG_ORDER = ["article", "noun", "pronoun", "verb", "adjective", "adverb", "determiner", "preposition", "conjunction", "interjection", "unknown"];
-      const manualRules = {
-        prepositions: ["to", "in", "on", "at", "by", "with", "about", "against", "between", "into", "through", "past", "under", "over", "near"],
-        conjunctions: ["and", "or", "but", "so", "yet", "for", "nor"],
-        determiners: ["this", "that", "these", "those", "my", "your", "his", "her", "its", "our", "their"],
-        interjections: ["wow", "oops", "hey", "ouch", "bravo", "alas"]
+      const glossary = {
+        article: { definition: "Introduces a noun (a, an, the).", example: "The cat slept.", misconception: "Articles are not adjectives, even though they come before nouns." },
+        noun: { definition: "Names a person, place, thing, or idea.", example: "River", misconception: "Not every capitalized word is a noun in context." },
+        pronoun: { definition: "Replaces a noun.", example: "She smiled.", misconception: "Pronouns are not always subjects; they can be objects too." },
+        verb: { definition: "Shows action or state of being.", example: "They run.", misconception: "A sentence can have helping + main verbs together." },
+        adjective: { definition: "Describes a noun or pronoun.", example: "Blue sky.", misconception: "Not every descriptive word is an adverb." },
+        adverb: { definition: "Modifies a verb/adjective/adverb.", example: "He ran quickly.", misconception: "Many adverbs do not end in -ly." },
+        determiner: { definition: "Specifies which noun (this, my, those).", example: "Those books.", misconception: "Determiners are a separate class from adjectives." },
+        preposition: { definition: "Shows relation in space/time (in, on, under).", example: "On the table.", misconception: "Prepositions are not conjunctions." },
+        conjunction: { definition: "Connects words/phrases/clauses.", example: "Tea and coffee.", misconception: "Conjunctions do not describe nouns." },
+        interjection: { definition: "Expresses sudden feeling.", example: "Oops!", misconception: "Interjections are often standalone, not sentence structure glue." },
+        unknown: { definition: "Couldn’t classify confidently.", example: "Context needed.", misconception: "Unknown does not mean incorrect; it may be ambiguous." }
       };
-      const settings = { realtime: true, textColor: false, labels: true, curvy: false };
+      const manualRules = {
+        prepositions: ["to","in","on","at","by","with","about","against","between","into","through","past","under","over","near"],
+        conjunctions: ["and","or","but","so","yet","for","nor"],
+        determiners: ["this","that","these","those","my","your","his","her","its","our","their"],
+        interjections: ["wow","oops","hey","ouch","bravo","alas"]
+      };
+      const settings = { realtime:true, textColor:false, labels:true, curvy:false, natural:true, autoPunctuate:false };
 
       const output = document.getElementById("output");
       const grammarType = document.getElementById("grammar-type");
@@ -265,9 +188,16 @@
       const wordInput = document.getElementById("word-input");
       const sentenceInput = document.getElementById("sentence-input");
       const legend = document.getElementById("legend");
+      const hoverHelp = document.getElementById("hover-help");
 
-      function normalizeWord(word) {
-        return word.toLowerCase().replace(/^[^a-z']+|[^a-z']+$/g, "");
+      function normalizeWord(word) { return word.toLowerCase().replace(/^[^a-z']+|[^a-z']+$/g, ""); }
+
+      function applyAutoPunctuation(text) {
+        let t = text.trim().replace(/\s+/g, " ");
+        if (!t) return t;
+        t = t.charAt(0).toUpperCase() + t.slice(1);
+        if (!/[.!?]$/.test(t)) t += ".";
+        return t;
       }
 
       function getWordClass(word, doc) {
@@ -278,7 +208,7 @@
         if (doc.match(normalized).has("#Noun")) return "noun";
         if (doc.match(normalized).has("#Adjective")) return "adjective";
         if (doc.match(normalized).has("#Adverb")) return "adverb";
-        if (["the", "a", "an"].includes(normalized)) return "article";
+        if (["the","a","an"].includes(normalized)) return "article";
         if (manualRules.prepositions.includes(normalized)) return "preposition";
         if (manualRules.conjunctions.includes(normalized)) return "conjunction";
         if (manualRules.determiners.includes(normalized)) return "determiner";
@@ -288,67 +218,110 @@
 
       function renderLegend() {
         legend.innerHTML = TAG_ORDER.map((tag) =>
-          `<div class="legend-item"><span class="swatch ${tag}"></span><span>${tag}</span></div>`
+          `<div class="legend-item"><span class="legend-sample ${tag}">Example</span><span>${tag}</span></div>`
         ).join("");
+      }
+
+      function showGlossary(tag) {
+        const item = glossary[tag] || glossary.unknown;
+        hoverHelp.innerHTML = `<h4>${tag}</h4><p><strong>Definition:</strong> ${item.definition}</p><p><strong>Example:</strong> ${item.example}</p><p><strong>Common misconception:</strong> ${item.misconception}</p>`;
       }
 
       function identifyGrammar(sentence) {
         const words = sentence.match(/\S+/g) || [];
         const doc = nlp(sentence);
-        return words.map((word) => {
+        return words.map((word, idx) => {
           const wordClass = getWordClass(word, doc);
-          const label = settings.labels ? `<span class="token-label-inline">${wordClass}</span>` : "";
-          return `<span class="token ${wordClass}" data-pos="${wordClass}" title="${wordClass}">${word}${label}</span>`;
+          const label = settings.labels ? `<span class="token-label">${wordClass}</span>` : "";
+          return `<span class="token" data-index="${idx}" data-pos="${wordClass}"><span class="token-word ${wordClass}">${word}</span>${label}</span>`;
         });
       }
 
-      function renderSentence(sentence) {
-        if (!sentence.trim()) {
+      function renderCurvedArrows(container) {
+        const tokens = [...container.querySelectorAll(".token")];
+        if (!settings.curvy || tokens.length === 0) return;
+
+        const svgNS = "http://www.w3.org/2000/svg";
+        const svg = document.createElementNS(svgNS, "svg");
+        svg.setAttribute("class", "arrow-svg");
+
+        const rect = container.getBoundingClientRect();
+        tokens.forEach((token) => {
+          const wordEl = token.querySelector(".token-word");
+          const wordRect = wordEl.getBoundingClientRect();
+          const x = wordRect.left - rect.left + wordRect.width / 2;
+          const yEnd = 50;
+          const yStart = 14;
+
+          const path = document.createElementNS(svgNS, "path");
+          path.setAttribute("d", `M ${x - 22} ${yStart} C ${x - 5} ${yStart - 2}, ${x - 7} ${yEnd - 10}, ${x} ${yEnd}`);
+          path.setAttribute("class", "arrow-path");
+          svg.appendChild(path);
+
+          const text = document.createElementNS(svgNS, "text");
+          text.setAttribute("x", x - 28);
+          text.setAttribute("y", 11);
+          text.setAttribute("class", "arrow-label");
+          text.textContent = token.dataset.pos;
+          svg.appendChild(text);
+        });
+
+        container.prepend(svg);
+      }
+
+      function renderSentence(text) {
+        let sentence = text.trim();
+        if (settings.autoPunctuate) sentence = applyAutoPunctuation(sentence);
+        if (!sentence) {
           output.innerHTML = "<em>Please type a sentence first.</em>";
           return;
         }
+
+        const tokens = identifyGrammar(sentence);
         output.classList.toggle("text-color-mode", settings.textColor);
-        output.classList.toggle("arrow-mode", settings.curvy);
-        const rendered = identifyGrammar(sentence);
-        output.innerHTML = `<div class="sentence">${rendered.join(" ")}</div>`;
+        output.classList.toggle("natural-mode", settings.natural);
+        output.innerHTML = `<div class="sentence">${tokens.join(" ")}</div>`;
+
+        const sentenceNode = output.querySelector(".sentence");
+        renderCurvedArrows(sentenceNode);
+        sentenceNode.querySelectorAll(".token-word").forEach((wordEl) => {
+          wordEl.addEventListener("mouseenter", () => showGlossary([...wordEl.classList].find((c) => glossary[c]) || "unknown"));
+        });
       }
 
       function checkWord() {
         const inputWord = wordInput.value.trim();
-        if (!inputWord) {
-          grammarType.textContent = "---";
-          return;
-        }
+        if (!inputWord) return (grammarType.textContent = "---");
         const normalized = normalizeWord(inputWord);
         const doc = nlp(normalized);
-        let detectedType = "Unknown";
-        if (doc.has("#Pronoun")) detectedType = "Pronoun";
-        else if (doc.has("#Verb")) detectedType = "Verb";
-        else if (doc.has("#Noun")) detectedType = "Noun";
-        else if (doc.has("#Adjective")) detectedType = "Adjective";
-        else if (doc.has("#Adverb")) detectedType = "Adverb";
-        else if (["the", "a", "an"].includes(normalized)) detectedType = "Article";
-        else if (manualRules.prepositions.includes(normalized)) detectedType = "Preposition";
-        else if (manualRules.conjunctions.includes(normalized)) detectedType = "Conjunction";
-        else if (manualRules.determiners.includes(normalized)) detectedType = "Determiner";
-        else if (manualRules.interjections.includes(normalized)) detectedType = "Interjection";
-        grammarType.textContent = detectedType;
+        let type = "Unknown";
+        if (doc.has("#Pronoun")) type = "Pronoun";
+        else if (doc.has("#Verb")) type = "Verb";
+        else if (doc.has("#Noun")) type = "Noun";
+        else if (doc.has("#Adjective")) type = "Adjective";
+        else if (doc.has("#Adverb")) type = "Adverb";
+        else if (["the","a","an"].includes(normalized)) type = "Article";
+        else if (manualRules.prepositions.includes(normalized)) type = "Preposition";
+        else if (manualRules.conjunctions.includes(normalized)) type = "Conjunction";
+        else if (manualRules.determiners.includes(normalized)) type = "Determiner";
+        else if (manualRules.interjections.includes(normalized)) type = "Interjection";
+        grammarType.textContent = type;
       }
 
       async function fetchSentences() {
         const response = await fetch("sentences.json");
         if (!response.ok) throw new Error(`Unable to load sentences.json (${response.status})`);
         const data = await response.json();
-        if (!Array.isArray(data.sentences) || data.sentences.length === 0) throw new Error("sentences.json has no sentences array");
+        if (!Array.isArray(data.sentences) || !data.sentences.length) throw new Error("sentences.json has no sentences array");
         sentences = data.sentences;
       }
 
       async function useRandomSentence() {
         try {
           if (!sentences.length) await fetchSentences();
-          const randomSentence = sentences[Math.floor(Math.random() * sentences.length)];
-          sentenceInput.value = randomSentence;
-          renderSentence(randomSentence);
+          const sentence = sentences[Math.floor(Math.random() * sentences.length)];
+          sentenceInput.value = sentence;
+          renderSentence(sentence);
           status.textContent = "Loaded a random sentence.";
         } catch (error) {
           status.textContent = `Could not load sample sentence: ${error.message}`;
@@ -360,12 +333,16 @@
         document.getElementById("setting-text-color").addEventListener("change", (e) => { settings.textColor = e.target.checked; renderSentence(sentenceInput.value); });
         document.getElementById("setting-labels").addEventListener("change", (e) => { settings.labels = e.target.checked; renderSentence(sentenceInput.value); });
         document.getElementById("setting-curvy").addEventListener("change", (e) => { settings.curvy = e.target.checked; renderSentence(sentenceInput.value); });
+        document.getElementById("setting-natural").addEventListener("change", (e) => { settings.natural = e.target.checked; renderSentence(sentenceInput.value); });
+        document.getElementById("setting-auto-punctuate").addEventListener("change", (e) => settings.autoPunctuate = e.target.checked);
       }
 
-      sentenceInput.addEventListener("input", () => {
-        if (settings.realtime) renderSentence(sentenceInput.value);
-      });
+      sentenceInput.addEventListener("input", () => { if (settings.realtime) renderSentence(sentenceInput.value); });
       document.getElementById("analyze-btn").addEventListener("click", () => renderSentence(sentenceInput.value));
+      document.getElementById("punctuate-btn").addEventListener("click", () => {
+        sentenceInput.value = applyAutoPunctuation(sentenceInput.value);
+        renderSentence(sentenceInput.value);
+      });
       document.getElementById("random-btn").addEventListener("click", useRandomSentence);
       wordInput.addEventListener("input", checkWord);
 

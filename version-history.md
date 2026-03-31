@@ -1,5 +1,15 @@
 # Version History
 
+## 1.1.6 - 2026-03-31
+- Fixed settings card layout so toggles render cleanly and read clearly.
+- Updated color key samples to match exactly the same classes used by highlighted words.
+- Reworked labels to appear under words instead of inline superscript.
+- Added natural sentence mode toggle for normal spacing/flow.
+- Added improved curved-arrow rendering with SVG paths that sit above words and are not constrained by token boxes.
+- Added hover glossary with definitions, examples, and common misconceptions.
+- Added auto-punctuation capability (manual button + optional auto mode).
+- Archived `1.1.5` under `versions/1.1.5/`.
+
 ## 1.1.5 - 2026-03-31
 - Improved **display settings layout** so each option renders cleanly with title + helper text.
 - Added improved **curved-arrow annotation mode** with labels above words and curved pointers to each token.
