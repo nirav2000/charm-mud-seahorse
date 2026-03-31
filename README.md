@@ -30,3 +30,16 @@ Grammar Playground is a framework-free, browser-based grammar learning app desig
 
 ## Local run
 Open `index.html` in a browser (or use any static server).
+
+## QA smoke tests (Playwright)
+- Install deps: `npm install`
+- Run tests: `npm run test:e2e`
+
+### Checklist covered automatically
+- App loads and sample sentence is present.
+- Glossary Show/Hide toggles correctly.
+- Word popover opens and closes correctly.
+- Version badge opens/closes changelog drawer.
+- Rebuild exercise place/check/reset works.
+- Sort exercise tap-place/check/reset works.
+- Desktop drag path still works (smoke check).

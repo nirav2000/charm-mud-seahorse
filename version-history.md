@@ -1,5 +1,12 @@
 # Version History
 
+## 1.3.4 - 2026-03-31
+- Added Playwright smoke tests for core app interactions (load/sample, glossary toggle, popover, drawer, rebuild, sort).
+- Added dual test projects for desktop interaction and touch-style fallback paths.
+- Added GitHub Actions workflow to run smoke tests on pushes to `main` and pull requests.
+- Added README QA checklist and local Playwright run instructions.
+- Archived `1.3.3` under `versions/1.3.3/`.
+
 ## 1.3.3 - 2026-03-31
 - Repair-first stability pass: refactored practice interactions to be state-driven with delegated listeners.
 - Fixed glossary collapse toggle consistency and kept it predictable across repeated analyses.
