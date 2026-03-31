@@ -81,7 +81,7 @@ test('sort exercise supports tap-select tap-place and check/reset', async ({ pag
 
 test('desktop drag path still works for rebuild', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop-chromium', 'drag path validated once in desktop project');
-  test.fixme(true, 'Tap-place flow is the primary path; drag support remains non-blocking.');
+  test.fixme(true, 'Desktop browser-native drag/drop is flaky in headless CI; tap-place path is the blocker coverage.');
   await page.goto('/');
   const source = page.locator('#rebuild-bank .draggable').first();
   const target = page.locator('#rebuild-zone');

@@ -1,5 +1,12 @@
 # Version History
 
+## 1.3.5 - 2026-03-31
+- Fixed popover placement so the word detail panel prefers appearing above the tapped word instead of covering it.
+- Hardened rebuild/sort placement state updates with shared helpers for tap and drop paths.
+- Added stronger drop-target guards and drag payload fallback handling in practice interactions.
+- Extended smoke coverage docs and kept desktop drag as a documented non-blocking check in CI.
+- Archived `1.3.4` under `versions/1.3.4/`.
+
 ## 1.3.4 - 2026-03-31
 - Added Playwright smoke tests for core app interactions (load/sample, glossary toggle, popover, drawer, rebuild, sort).
 - Added dual test projects for desktop interaction and touch-style fallback paths.

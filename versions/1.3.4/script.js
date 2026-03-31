@@ -1,5 +1,5 @@
 const state = {
-  version: "1.3.5",
+  version: "1.3.4",
   settings: { autoPunctuate: true, showLabels: true, showConnectors: true },
   sentences: [],
   parsed: [],
@@ -213,11 +213,9 @@ function openPopoverForToken(idx) {
   if (!mobileSheet) {
     const panelW = 320;
     const panelH = 270;
-    const centeredLeft = tokenRect.left - stageRect.left - panelW / 2 + tokenRect.width / 2;
-    const left = Math.min(stageRect.width - panelW - 8, Math.max(8, centeredLeft));
-    const topAbove = tokenRect.top - stageRect.top - panelH - 12;
-    const topBelow = tokenRect.bottom - stageRect.top + 16;
-    const top = topAbove >= 8 ? topAbove : Math.min(Math.max(8, topBelow), Math.max(8, stageRect.height - panelH - 8));
+    const left = Math.min(stageRect.width - panelW - 8, Math.max(8, tokenRect.left - stageRect.left - panelW / 2 + tokenRect.width / 2));
+    const preferredTop = tokenRect.bottom - stageRect.top + 14;
+    const top = Math.min(Math.max(8, preferredTop), Math.max(8, stageRect.height - panelH - 8));
     el.wordPopover.style.left = `${left}px`;
     el.wordPopover.style.top = `${top}px`;
   } else {
@@ -345,7 +343,6 @@ function removeFirst(arr, value) {
 function initPracticeState(parsed) {
   state.practice = {
     selectedWord: null,
-    dragWord: null,
     rebuildTarget: [],
     rebuildBank: shuffle(parsed.map((p) => p.word)),
     sortBank: parsed.map((p) => ({ word: p.word, pos: p.pos })),
@@ -365,7 +362,6 @@ function renderRebuildTab() {
     </div>
     <div class="feedback" id="rebuild-feedback">${target ? "" : "Build the sentence in the correct order."}</div>
   `;
-  wirePracticeDropZones();
 }
 
 function renderSortTab() {
@@ -380,7 +376,6 @@ function renderSortTab() {
     </div>
     <div class="feedback" id="sort-feedback">Sort each word into the best bin.</div>
   `;
-  wirePracticeDropZones();
 }
 
 function renderPractice(parsed) {
@@ -531,48 +526,32 @@ function resetSort() {
 
 function initPracticeInteractions() {
   let dragPayload = null;
-  const placeIntoRebuild = (word) => {
-    if (!state.practice.rebuildBank.includes(word)) return;
-    removeFirst(state.practice.rebuildBank, word);
-    state.practice.rebuildTarget.push(word);
-    renderRebuildTab();
-  };
-  const placeIntoSortBin = (word, binName) => {
-    const entry = state.practice.sortBank.find((p) => p.word === word);
-    if (!entry) return;
-    state.practice.sortBank = state.practice.sortBank.filter((p) => !(p.word === word && p.pos === entry.pos));
-    state.practice.sortBins[binName].push(word);
-    renderSortTab();
-  };
-
   el.practiceCard.addEventListener("dragstart", (e) => {
     const chip = e.target.closest(".draggable[data-word]");
     if (!chip) return;
     dragPayload = { word: chip.dataset.word, pos: chip.dataset.pos, source: chip.dataset.practice };
-    state.practice.dragWord = chip.dataset.word;
-    e.dataTransfer.effectAllowed = "copyMove";
     e.dataTransfer.setData("text/plain", chip.dataset.word);
   });
   el.practiceCard.addEventListener("dragover", (e) => {
-    const targetEl = e.target.nodeType === 1 ? e.target : e.target.parentElement;
-    if (targetEl?.closest(".bin, #rebuild-zone")) e.preventDefault();
+    if (e.target.closest(".bin, #rebuild-zone")) e.preventDefault();
   });
   el.practiceCard.addEventListener("drop", (e) => {
-    const targetEl = e.target.nodeType === 1 ? e.target : e.target.parentElement;
-    const targetBin = targetEl?.closest(".bin");
-    const rebuildZone = targetEl?.closest("#rebuild-zone");
+    const targetBin = e.target.closest(".bin");
+    const rebuildZone = e.target.closest("#rebuild-zone");
     if (!targetBin && !rebuildZone) return;
     e.preventDefault();
-    const draggedWord = dragPayload?.word || state.practice.dragWord || e.dataTransfer.getData("text/plain");
-    if (!draggedWord) return;
-    if (rebuildZone) {
-      placeIntoRebuild(draggedWord);
+    if (!dragPayload) return;
+    if (rebuildZone && dragPayload.source === "rebuild-bank") {
+      removeFirst(state.practice.rebuildBank, dragPayload.word);
+      state.practice.rebuildTarget.push(dragPayload.word);
+      renderRebuildTab();
     }
-    if (targetBin) {
-      placeIntoSortBin(draggedWord, targetBin.dataset.bin);
+    if (targetBin && dragPayload.source === "sort-bank") {
+      state.practice.sortBank = state.practice.sortBank.filter((p) => p.word !== dragPayload.word);
+      state.practice.sortBins[targetBin.dataset.bin].push(dragPayload.word);
+      renderSortTab();
     }
     dragPayload = null;
-    state.practice.dragWord = null;
   });
 
   el.practiceCard.addEventListener("click", (e) => {
@@ -600,7 +579,12 @@ function initPracticeInteractions() {
     }
 
     if (chip && chip.dataset.practice === "rebuild-bank") {
-      placeIntoRebuild(chip.dataset.word);
+      const idx = state.practice.rebuildBank.indexOf(chip.dataset.word);
+      if (idx > -1) {
+        state.practice.rebuildBank.splice(idx, 1);
+        state.practice.rebuildTarget.push(chip.dataset.word);
+        renderRebuildTab();
+      }
       return;
     }
     if (chip && chip.dataset.practice === "sort-bank") {
@@ -609,19 +593,11 @@ function initPracticeInteractions() {
       return;
     }
     if (bin && state.practice.selectedWord) {
-      placeIntoSortBin(state.practice.selectedWord.word, bin.dataset.bin);
+      state.practice.sortBank = state.practice.sortBank.filter((p) => p.word !== state.practice.selectedWord.word);
+      state.practice.sortBins[bin.dataset.bin].push(state.practice.selectedWord.word);
       state.practice.selectedWord = null;
+      renderSortTab();
     }
-  });
-}
-
-function wirePracticeDropZones() {
-  const rebuildZone = document.getElementById("rebuild-zone");
-  if (rebuildZone) {
-    rebuildZone.addEventListener("dragover", (e) => e.preventDefault());
-  }
-  document.querySelectorAll(".bin").forEach((bin) => {
-    bin.addEventListener("dragover", (e) => e.preventDefault());
   });
 }
 

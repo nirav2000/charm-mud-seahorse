@@ -42,4 +42,4 @@ Open `index.html` in a browser (or use any static server).
 - Version badge opens/closes changelog drawer.
 - Rebuild exercise place/check/reset works.
 - Sort exercise tap-place/check/reset works.
-- Desktop drag path still works (smoke check).
+- Optional desktop drag path check (non-blocking in CI).
