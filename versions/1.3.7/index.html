@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Grammar Playground</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://unpkg.com/compromise"></script>
+</head>
+<body>
+  <main class="app">
+    <header class="app-bar">
+      <h1>Grammar Playground</h1>
+      <button id="history-btn" class="version-badge" aria-label="Open version history">v1.3.7</button>
+    </header>
+
+    <section class="worksheet" aria-labelledby="worksheet-title">
+      <h2 id="worksheet-title">Let’s break up the sentence!</h2>
+      <div class="input-row">
+        <textarea id="sentence-input" placeholder="Type a sentence..."></textarea>
+        <div class="actions">
+          <button id="analyze-btn" class="btn primary">Analyse</button>
+          <button id="sample-btn" class="btn secondary">New sample</button>
+        </div>
+      </div>
+      <p id="status">Ready to learn.</p>
+      <div id="analysis-stage" class="analysis-stage">
+        <svg id="arrow-layer" class="arrow-layer" aria-hidden="true"></svg>
+        <div id="token-line" class="token-line"></div>
+        <aside id="word-popover" class="word-popover" aria-hidden="true">
+          <button id="popover-close" class="popover-close" aria-label="Close word details">×</button>
+          <div id="popover-content"></div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="learning-grid">
+      <article class="card glossary-card">
+        <div class="collapsible-head">
+          <h3>Grammar helper glossary</h3>
+          <button id="glossary-toggle" class="btn ghost" aria-expanded="false" aria-controls="glossary-wrap">Show</button>
+        </div>
+        <div id="glossary-wrap" class="is-collapsed">
+          <div id="glossary-list"></div>
+        </div>
+      </article>
+    </section>
+
+    <section class="card practice-card">
+      <h3>Practice studio</h3>
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="rebuild">Rebuild sentence</button>
+        <button class="tab-btn" data-tab="sort">Sort by grammar</button>
+        <button class="tab-btn" data-tab="fix">Fix mistake</button>
+        <button class="tab-btn" data-tab="phrase">Identify phrase</button>
+        <button class="tab-btn" data-tab="compare">Adjective vs adverb</button>
+      </div>
+      <div id="tab-rebuild" class="tab-panel active"></div>
+      <div id="tab-sort" class="tab-panel"></div>
+      <div id="tab-fix" class="tab-panel"></div>
+      <div id="tab-phrase" class="tab-panel"></div>
+      <div id="tab-compare" class="tab-panel"></div>
+    </section>
+
+    <section class="card dashboard-card">
+      <h3>Progress dashboard</h3>
+      <div id="dashboard"></div>
+    </section>
+  </main>
+
+  <aside id="history-drawer" class="drawer" aria-hidden="true">
+    <div class="drawer-head">
+      <h3>Version history</h3>
+      <button id="history-close" class="btn ghost">Close</button>
+    </div>
+    <div id="version-timeline"></div>
+  </aside>
+
+  <script src="script.js"></script>
+</body>
+</html>

@@ -1,3 +1,10 @@
+## 1.3.8 - 2026-03-31
+- Follow-up release after review feedback on `1.3.7`.
+- Added one-time token-line container listener binding and kept token-level listener rebinding per render.
+- Switched practice sorting to stable token IDs for accurate handling of repeated words.
+- Archived `1.3.7` under `versions/1.3.7/`.
+- Bumped runtime/app version metadata to `1.3.8`.
+
 ## 1.3.7 - 2026-03-31
 - Follow-up release after review feedback on `1.3.6`.
 - Archived `1.3.6` under `versions/1.3.6/`.
