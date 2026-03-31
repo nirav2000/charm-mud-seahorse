@@ -9,7 +9,6 @@
     />
     <title>Grammar Highlighter</title>
     <script src="https://unpkg.com/compromise"></script>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
       body { font-family: Arial, sans-serif; margin: 24px; }
       .sentence { font-size: 18px; line-height: 1.6; margin-top: 14px; }
@@ -27,55 +26,28 @@
       #word-input { padding: 8px; font-size: 16px; margin: 10px 0; }
       #result { font-size: 18px; font-weight: bold; margin-top: 10px; }
       #status { color: #444; margin-top: 8px; }
-
       footer { margin-top: 28px; border-top: 1px solid #ddd; padding-top: 12px; }
-      #version-button {
-        background: #f5f5f5;
-        border: 1px solid #bbb;
-        border-radius: 999px;
-        padding: 6px 12px;
-        cursor: pointer;
-      }
-      #version-modal {
-        position: fixed;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.45);
-        display: none;
-        align-items: center;
-        justify-content: center;
-      }
+      #version-button { background: #f5f5f5; border: 1px solid #bbb; border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+      #version-modal { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); display: none; align-items: center; justify-content: center; }
       #version-modal.open { display: flex; }
-      .modal-content {
-        width: min(800px, 90vw);
-        max-height: 85vh;
-        overflow-y: auto;
-        background: #fff;
-        border-radius: 10px;
-        padding: 18px;
-      }
+      .modal-content { width: min(800px, 90vw); max-height: 85vh; overflow-y: auto; background: #fff; border-radius: 10px; padding: 18px; }
       .modal-header { display: flex; justify-content: space-between; align-items: center; }
       .modal-close { border: none; background: transparent; font-size: 22px; cursor: pointer; }
       .version-controls { margin: 12px 0; display: flex; gap: 8px; }
       .version-controls button { padding: 6px 10px; cursor: pointer; }
-      #version-history-rendered h1, #version-history-rendered h2 { margin-bottom: 8px; }
-      #version-history-rendered ul { margin-top: 4px; }
-      #version-history-rendered code { background: #f2f2f2; padding: 2px 4px; border-radius: 4px; }
     </style>
   </head>
   <body>
     <h2>Grammar Highlighter</h2>
-
     <label for="word-input">Enter a word to check its grammar:</label>
     <input type="text" id="word-input" placeholder="Type a word..." />
-
     <p id="result">Grammar Type: <span id="grammar-type">---</span></p>
     <p id="status" role="status" aria-live="polite">Loading sentence…</p>
-
     <div id="output"></div>
 
     <footer>
       <button id="version-button" type="button" aria-haspopup="dialog" aria-controls="version-modal">
-        Version <span id="version-label">1.1.0</span>
+        Version <span id="version-label">1.1.1</span>
       </button>
     </footer>
 
@@ -93,10 +65,10 @@
       </div>
     </div>
 
+    <script src="versioning.js"></script>
     <script>
-      const CURRENT_VERSION = "1.1.0";
+      const CURRENT_VERSION = "1.1.1";
       let sentences = [];
-      let availableVersions = [];
       const manualRules = {
         prepositions: ["to", "in", "on", "at", "by", "with", "about", "against", "between", "into", "through"],
         conjunctions: ["and", "or", "but", "so", "yet", "for", "nor"],
@@ -107,11 +79,6 @@
       const grammarType = document.getElementById("grammar-type");
       const status = document.getElementById("status");
       const wordInput = document.getElementById("word-input");
-      const versionModal = document.getElementById("version-modal");
-      const versionHistoryRendered = document.getElementById("version-history-rendered");
-      const versionLabel = document.getElementById("version-label");
-
-      versionLabel.textContent = CURRENT_VERSION;
 
       function normalizeWord(word) {
         return word.toLowerCase().replace(/^[^a-z']+|[^a-z']+$/g, "");
@@ -135,10 +102,7 @@
       function identifyGrammar(sentence) {
         const words = sentence.match(/\S+/g) || [];
         const doc = nlp(sentence);
-        const html = words.map((word) => {
-          const wordClass = getWordClass(word, doc);
-          return `<span class="word ${wordClass}" title="${wordClass}">${word}</span>`;
-        }).join(" ");
+        const html = words.map((word) => `<span class="word ${getWordClass(word, doc)}" title="${getWordClass(word, doc)}">${word}</span>`).join(" ");
         return `<div class="sentence">${html}</div>`;
       }
 
@@ -167,9 +131,7 @@
         const response = await fetch("sentences.json");
         if (!response.ok) throw new Error(`Unable to load sentences.json (${response.status})`);
         const data = await response.json();
-        if (!Array.isArray(data.sentences) || data.sentences.length === 0) {
-          throw new Error("sentences.json has no sentences array");
-        }
+        if (!Array.isArray(data.sentences) || data.sentences.length === 0) throw new Error("sentences.json has no sentences array");
         sentences = data.sentences;
       }
 
@@ -185,66 +147,9 @@
         }
       }
 
-      function markdownToHtml(markdown) {
-        if (window.marked && typeof window.marked.parse === "function") {
-          return window.marked.parse(markdown);
-        }
-        return markdown.replace(/\n/g, "<br>");
-      }
-
-      function parseVersionList(markdown) {
-        const matches = [...markdown.matchAll(/^##\s+([0-9]+\.[0-9]+\.[0-9]+)/gm)];
-        availableVersions = matches.map((m) => m[1]);
-      }
-
-      function getVersionPath(version) {
-        if (version === CURRENT_VERSION) return "index.html";
-        return `versions/${version}/index.html`;
-      }
-
-      function openAdjacentVersion(offset) {
-        const sorted = [...availableVersions].sort((a, b) => {
-          const pa = a.split(".").map(Number);
-          const pb = b.split(".").map(Number);
-          if (pa[0] !== pb[0]) return pb[0] - pa[0];
-          if (pa[1] !== pb[1]) return pb[1] - pa[1];
-          return pb[2] - pa[2];
-        });
-        const currentIdx = sorted.indexOf(CURRENT_VERSION);
-        const target = sorted[currentIdx + offset];
-        if (!target) return;
-        window.location.href = getVersionPath(target);
-      }
-
-      async function loadVersionHistory() {
-        try {
-          const response = await fetch("version-history.md");
-          if (!response.ok) throw new Error(`Unable to load version-history.md (${response.status})`);
-          const markdown = await response.text();
-          parseVersionList(markdown);
-          versionHistoryRendered.innerHTML = markdownToHtml(markdown);
-        } catch (error) {
-          versionHistoryRendered.textContent = `Could not load version history: ${error.message}`;
-        }
-      }
-
-      document.getElementById("version-button").addEventListener("click", () => {
-        versionModal.classList.add("open");
-      });
-      document.getElementById("close-modal").addEventListener("click", () => {
-        versionModal.classList.remove("open");
-      });
-      versionModal.addEventListener("click", (event) => {
-        if (event.target === versionModal) {
-          versionModal.classList.remove("open");
-        }
-      });
-      document.getElementById("prev-version").addEventListener("click", () => openAdjacentVersion(1));
-      document.getElementById("next-version").addEventListener("click", () => openAdjacentVersion(-1));
       wordInput.addEventListener("input", checkWord);
-
       renderRandomSentence();
-      loadVersionHistory();
+      initVersioning({ currentVersion: CURRENT_VERSION, rootPrefix: "" });
     </script>
   </body>
 </html>

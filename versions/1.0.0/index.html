@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Grammar Highlighter</title>
-    <script src="https://unpkg.com/compromise"></script> <!-- NLP Library -->
+    <title>Grammar Highlighter (v1.0.0)</title>
+    <script src="https://unpkg.com/compromise"></script>
     <style>
         .sentence { font-size: 18px; line-height: 1.6; }
         .word { padding: 3px; transition: background 0.3s ease; cursor: pointer; }
@@ -20,36 +20,60 @@
         .unknown { background-color: lightgray; }
         #word-input { padding: 8px; font-size: 16px; margin: 10px 0; }
         #result { font-size: 18px; font-weight: bold; margin-top: 10px; }
+
+        footer { margin-top: 28px; border-top: 1px solid #ddd; padding-top: 12px; }
+        #version-button { background: #f5f5f5; border: 1px solid #bbb; border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+        #version-modal { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); display: none; align-items: center; justify-content: center; }
+        #version-modal.open { display: flex; }
+        .modal-content { width: min(800px, 90vw); max-height: 85vh; overflow-y: auto; background: #fff; border-radius: 10px; padding: 18px; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; }
+        .modal-close { border: none; background: transparent; font-size: 22px; cursor: pointer; }
+        .version-controls { margin: 12px 0; display: flex; gap: 8px; }
+        .version-controls button { padding: 6px 10px; cursor: pointer; }
     </style>
 </head>
 <body>
 
-    <h2>Grammar Highlighter</h2>
+    <h2>Grammar Highlighter (Archived v1.0.0)</h2>
     
-    <!-- Input Box for Word Checking -->
     <label for="word-input">Enter a word to check its grammar:</label>
     <input type="text" id="word-input" placeholder="Type a word..." oninput="checkWord()">
     
-    <!-- Display the result -->
     <p id="result">Grammar Type: <span id="grammar-type">---</span></p>
-    
     <div id="output"></div>
+
+    <footer>
+      <button id="version-button" type="button" aria-haspopup="dialog" aria-controls="version-modal">
+        Version <span id="version-label">1.0.0</span>
+      </button>
+    </footer>
+
+    <div id="version-modal" role="dialog" aria-modal="true" aria-labelledby="version-title">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="version-title">Version History</h3>
+          <button class="modal-close" id="close-modal" aria-label="Close">×</button>
+        </div>
+        <div class="version-controls">
+          <button id="prev-version" type="button">Open previous version</button>
+          <button id="next-version" type="button">Open newer version</button>
+        </div>
+        <div id="version-history-rendered">Loading history…</div>
+      </div>
+    </div>
 
     <script>
       let sentences;
       async function fetchSentences() {
-  const response = await fetch('sentences.json');
-  const data = await response.json();
-  sentences = data.sentences;
-  // console.log("await: ", sentences, data, data.sentences[1]);
-}
+        const response = await fetch('sentences.json');
+        const data = await response.json();
+        sentences = data.sentences;
+      }
 
-      
-        function identifyGrammar(sentence) {
+      function identifyGrammar(sentence) {
             const doc = nlp(sentence);
             const words = sentence.split(" ");
 
-            // Manual rules for missing words
             const manualRules = {
                 prepositions: ["to", "in", "on", "at", "by", "with", "about", "against", "between", "into", "through"],
                 conjunctions: ["and", "or", "but", "so", "yet", "for", "nor"],
@@ -58,65 +82,58 @@
 
             function getWordClass(word) {
                 word = word.toLowerCase();
-                
                 if (doc.match(word).has("#Pronoun")) return "pronoun";
                 if (doc.match(word).has("#Verb")) return "verb";
                 if (doc.match(word).has("#Noun")) return "noun";
                 if (doc.match(word).has("#Adjective")) return "adjective";
                 if (doc.match(word).has("#Adverb")) return "adverb";
                 if (["the", "a", "an"].includes(word)) return "article";
-                
-                // Manual classification for words not caught by NLP
                 if (manualRules.prepositions.includes(word)) return "preposition";
                 if (manualRules.conjunctions.includes(word)) return "conjunction";
                 if (manualRules.determiners.includes(word)) return "determiner";
-
-                return "unknown"; // Default
+                return "unknown";
             }
 
-            // Generate HTML with highlighted words
             const html = words.map(word => {
                 let wordClass = getWordClass(word);
                 return `<span class="word ${wordClass}" title="${wordClass}">${word}</span>`;
             }).join(" ");
 
             return `<div class="sentence">${html}</div>`;
+      }
+
+      function checkWord() {
+        const inputWord = document.getElementById("word-input").value.trim();
+        if (inputWord === "") {
+            document.getElementById("grammar-type").textContent = "---";
+            return;
         }
 
-        // Function to check a single word
-        function checkWord() {
-            const inputWord = document.getElementById("word-input").value.trim();
-            if (inputWord === "") {
-                document.getElementById("grammar-type").textContent = "---";
-                return;
-            }
+        const doc = nlp(inputWord);
+        let grammarType = "unknown";
 
-            const doc = nlp(inputWord);
-            let grammarType = "unknown"; // Default category
+        if (doc.has("#Pronoun")) grammarType = "Pronoun";
+        else if (doc.has("#Verb")) grammarType = "Verb";
+        else if (doc.has("#Noun")) grammarType = "Noun";
+        else if (doc.has("#Adjective")) grammarType = "Adjective";
+        else if (doc.has("#Adverb")) grammarType = "Adverb";
+        else if (["the", "a", "an"].includes(inputWord.toLowerCase())) grammarType = "Article";
+        else if (["to", "in", "on", "at", "by", "with", "about", "against", "between", "into", "through"].includes(inputWord.toLowerCase())) grammarType = "Preposition";
+        else if (["and", "or", "but", "so", "yet", "for", "nor"].includes(inputWord.toLowerCase())) grammarType = "Conjunction";
+        else if (["this", "that", "these", "those", "my", "your", "his", "her", "its", "our", "their"].includes(inputWord.toLowerCase())) grammarType = "Determiner";
 
-            if (doc.has("#Pronoun")) grammarType = "Pronoun";
-            else if (doc.has("#Verb")) grammarType = "Verb";
-            else if (doc.has("#Noun")) grammarType = "Noun";
-            else if (doc.has("#Adjective")) grammarType = "Adjective";
-            else if (doc.has("#Adverb")) grammarType = "Adverb";
-            else if (["the", "a", "an"].includes(inputWord.toLowerCase())) grammarType = "Article";
-            else if (["to", "in", "on", "at", "by", "with", "about", "against", "between", "into", "through"].includes(inputWord.toLowerCase())) grammarType = "Preposition";
-            else if (["and", "or", "but", "so", "yet", "for", "nor"].includes(inputWord.toLowerCase())) grammarType = "Conjunction";
-            else if (["this", "that", "these", "those", "my", "your", "his", "her", "its", "our", "their"].includes(inputWord.toLowerCase())) grammarType = "Determiner";
+        document.getElementById("grammar-type").textContent = grammarType;
+      }
 
-            document.getElementById("grammar-type").textContent = grammarType;
-        }
-
-        // Example Sentence Output
-        // const sentenceHtml = identifyGrammar("She walks to the park and enjoys the weather.");
-        // document.getElementById("output").innerHTML = sentenceHtml;
-      
       window.onload = async ()=> {
-  await fetchSentences();
-let a = identifyGrammar(sentences[Math.floor(Math.random() * sentences.length)]);
-  document.getElementById("output").innerHTML = a;//sentences[2];
-  
-};
+        await fetchSentences();
+        let a = identifyGrammar(sentences[Math.floor(Math.random() * sentences.length)]);
+        document.getElementById("output").innerHTML = a;
+      };
+    </script>
+    <script src="../../versioning.js"></script>
+    <script>
+      initVersioning({ currentVersion: "1.0.0", rootPrefix: "../../" });
     </script>
 
 </body>
