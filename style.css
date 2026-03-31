@@ -1,46 +1,239 @@
-.grammar-part {
+/* === 1) Design tokens === */
+:root {
+  --bg: #f3f6fb;
+  --card: #ffffff;
+  --text: #1f2a44;
+  --muted: #60708f;
+  --primary: #345bff;
+  --secondary: #1ea58d;
+  --border: #d7e0f1;
+  --radius: 16px;
+  --shadow: 0 10px 24px rgba(30, 50, 100, 0.08);
+}
+
+/* === 2) Global layout === */
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: "Inter", "Segoe UI", Arial, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+}
+
+.app-shell {
+  max-width: 1040px;
+  margin: 18px auto;
+  padding: 0 16px 24px;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+h1, h2, h3 { margin: 0; }
+h2 { font-size: 1.05rem; margin-bottom: 10px; }
+
+/* === 3) Top app bar === */
+.app-bar {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  padding: 10px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.wordmark-wrap { display: flex; align-items: center; gap: 10px; }
+.wordmark-dot {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: grid; place-items: center;
+  color: white; font-weight: 700;
+  background: var(--primary);
+}
+.wordmark { font-size: 1.1rem; font-weight: 700; }
+.app-bar-actions { display: flex; gap: 8px; }
+
+/* === 4) Buttons and inputs === */
+button { font: inherit; cursor: pointer; border: none; }
+.primary-btn {
+  background: var(--primary); color: #fff;
+  border-radius: 10px; padding: 10px 12px; font-weight: 600;
+}
+.secondary-btn {
+  background: #eef2ff; color: #22366e;
+  border: 1px solid #c9d5ff;
+  border-radius: 10px; padding: 10px 12px; font-weight: 600;
+}
+.ghost-btn {
+  background: transparent; color: #22366e; border: 1px solid #cfd9f0;
+  border-radius: 10px; padding: 8px 12px;
+}
+.icon-btn {
+  width: 34px; height: 34px; border-radius: 10px;
+  background: #edf2ff; color: #1f2a44;
+}
+
+textarea, input {
+  width: 100%;
+  border: 1px solid #cfd8ec;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 1rem;
+}
+textarea { min-height: 102px; resize: vertical; }
+.status { color: var(--muted); margin-top: 8px; }
+.muted { color: var(--muted); margin: 4px 0 0; }
+
+/* === 5) Sentence card === */
+.sentence-layout {
+  display: grid;
+  grid-template-columns: 1fr 190px;
+  gap: 12px;
+  align-items: start;
+}
+.sentence-actions { display: grid; gap: 8px; }
+
+/* === 6) Analysis canvas === */
+.analysis-canvas {
   position: relative;
+  min-height: 260px;
+  border: 1px dashed #d8e1f1;
+  border-radius: 12px;
+  padding: 22px 18px 18px;
+  overflow: hidden;
 }
-
-.grammar-part::after {
-  content: attr(data-grammar);
+.connector-layer {
   position: absolute;
-  background-color: lightyellow;
-  padding: 5px;
-  border: 1px solid gray;
-  border-radius: 5px;
-  display: none;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  white-space: nowrap;
-  z-index: 1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.label-layer {
+  position: relative;
+  min-height: 76px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  align-items: flex-end;
+}
+.token-layer {
+  position: relative;
+  min-height: 70px;
+  margin-top: 28px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
-.grammar-part:hover::after {
-  display: block;
+.label-chip {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: #f2f5ff;
+  border: 1px solid #d6def4;
+}
+.token {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+.token-word {
+  font-size: 1.8rem;
+  line-height: 1;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 8px;
+}
+.token-sub {
+  font-size: 0.72rem;
+  color: #5c6d91;
 }
 
-.noun {
-    background-color: lightblue;
+/* POS colors */
+.pos-pronoun { color: #2e76c2; background: #e4f2ff; }
+.pos-verb { color: #1e8f5e; background: #e3fff1; }
+.pos-noun { color: #b72d49; background: #ffe5ec; }
+.pos-article { color: #8f7a04; background: #fff5c6; }
+.pos-adjective { color: #a83895; background: #ffe3f7; }
+.pos-adverb { color: #646464; background: #ececec; }
+.pos-preposition { color: #09799a; background: #dff6ff; }
+.pos-conjunction { color: #9b6b0f; background: #fcefc9; }
+.pos-determiner { color: #157f70; background: #defdf5; }
+.pos-interjection { color: #6e4ca7; background: #efe4ff; }
+.pos-unknown { color: #4f5c73; background: #edf1f8; }
+
+/* === 7) Single word checker === */
+.checker-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 360px) 1fr;
+  gap: 14px;
+  align-items: start;
+}
+.checker-result p { margin: 0 0 6px; }
+
+/* === 8) Drawers === */
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: min(420px, 92vw);
+  height: 100vh;
+  background: #fff;
+  border-left: 1px solid var(--border);
+  box-shadow: -10px 0 28px rgba(20, 36, 80, 0.16);
+  padding: 14px;
+  transform: translateX(104%);
+  transition: transform 0.24s;
+  z-index: 50;
+  overflow-y: auto;
+}
+.drawer.open { transform: translateX(0); }
+.drawer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.toggle-btn {
+  width: 100%;
+  text-align: left;
+  border-radius: 10px;
+  border: 1px solid #d4def2;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  background: #f2f5ff;
+  color: #4b5a7a;
+  font-weight: 600;
+}
+.toggle-btn.is-on {
+  background: #2f4e95;
+  color: white;
+  border-color: #2f4e95;
 }
 
-.verb {
-    background-color: lightgreen;
+/* === 9) Timeline === */
+.timeline-item {
+  border-left: 2px solid #d8e0f4;
+  padding: 0 0 12px 12px;
+  margin-bottom: 10px;
 }
+.timeline-item a { color: #21469a; text-decoration: none; font-weight: 700; }
+.timeline-date { font-size: 0.78rem; color: var(--muted); }
+.timeline-summary { margin: 6px 0 0; color: #4b5a7a; font-size: 0.9rem; }
 
-.adjective {
-    background-color: lightcoral;
-}
-
-.adverb {
-    background-color: lightsalmon;
-}
-
-.determiner {
-    background-color: lightcyan;
-}
-
-.preposition {
-    background-color: lightgoldenrodyellow;
+/* === 10) iPad-first responsive tweaks === */
+@media (max-width: 980px) {
+  .sentence-layout { grid-template-columns: 1fr; }
+  .sentence-actions { grid-template-columns: 1fr 1fr; }
+  .checker-grid { grid-template-columns: 1fr; }
 }

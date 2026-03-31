@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Grammar Playground</title>
+    <script src="https://unpkg.com/compromise"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+      body{margin:0;font-family:Nunito,"Segoe UI",Arial,sans-serif;background:#f3f7ff;color:#1f2a44}
+      .app{max-width:1100px;margin:18px auto;padding:0 16px 24px;position:relative}
+      .hero,.panel{background:#fff;border:1px solid #d5def4;border-radius:18px;box-shadow:0 10px 24px rgba(39,68,132,.08)}
+      .hero{padding:16px;margin-bottom:12px;display:flex;justify-content:center}
+      .hero img{max-width:520px;width:100%;height:auto}
+      .panel{padding:14px;margin-bottom:12px}
+      .controls{display:grid;grid-template-columns:1fr auto auto;gap:10px}
+      textarea,input{width:100%;box-sizing:border-box;border:1px solid #c4d2f2;border-radius:12px;padding:10px 12px;font-size:1rem;background:#fff;font-family:inherit}
+      textarea{min-height:95px;resize:vertical}
+      button{border:none;border-radius:12px;padding:10px 14px;color:#fff;background:#4065ff;font-weight:700;cursor:pointer}
+      button.secondary{background:#6a7899}
+      #status{color:#627192;margin:8px 0 0}
+
+      .sentence-wrap{position:relative;margin-top:10px;padding:74px 12px 66px;border:1px dashed #d6def3;border-radius:12px;min-height:120px}
+      .sentence{display:block;line-height:1.7;font-size:1.95rem;font-weight:800}
+      .token{display:inline-flex;flex-direction:column;align-items:center;vertical-align:bottom;margin-right:6px;position:relative}
+      .token-word{line-height:1.05;padding:0 4px;border-radius:6px}
+      .token-label{font-size:.68rem;color:#506080;margin-top:2px;line-height:1}
+
+      .pronoun{color:#2e76c2;background:#e4f2ff}.verb{color:#1e8f5e;background:#e3fff1}.noun{color:#b72d49;background:#ffe5ec}.article{color:#8f7a04;background:#fff5c6}
+      .adjective{color:#a83895;background:#ffe3f7}.adverb{color:#646464;background:#ececec}.preposition{color:#09799a;background:#dff6ff}.conjunction{color:#9b6b0f;background:#fcefc9}
+      .determiner{color:#157f70;background:#defdf5}.interjection{color:#6e4ca7;background:#efe4ff}.unknown{color:#4f5c73;background:#edf1f8}
+      .no-highlight .token-word{background:transparent!important}
+
+      .arrow-layer{position:absolute;inset:0;pointer-events:none}
+      .arrow-label{position:absolute;font-size:.72rem;font-weight:700;color:#3e4f77;white-space:nowrap;background:rgba(255,255,255,.86);padding:0 2px}
+      .arrow-path{stroke:rgba(61,79,122,.88);stroke-width:1.8;fill:none;marker-end:url(#arrowhead)}
+
+      .legend{display:flex;flex-wrap:wrap;gap:8px}
+      .legend-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:999px;background:#f6f8ff;border:1px solid #d9e2f7}
+      .legend-dot{width:14px;height:14px;border-radius:4px;border:1px solid rgba(0,0,0,.16)}
+      .legend-item .term{font-weight:700}
+
+      .floating-help{position:fixed;z-index:25;min-width:260px;max-width:320px;background:#fff;border:1px solid #cfd9f2;border-radius:10px;box-shadow:0 12px 24px rgba(20,36,80,.2);padding:10px;display:none}
+      .floating-help h4{margin:0 0 4px}.floating-help p{margin:3px 0;font-size:.9rem}
+
+      .settings-toggle{position:fixed;right:16px;top:90px;z-index:30}
+      .settings-panel{position:fixed;right:16px;top:140px;width:320px;max-height:72vh;overflow:auto;background:#fff;border:1px solid #ccd7f3;border-radius:14px;padding:10px;box-shadow:0 12px 28px rgba(20,36,80,.18);transition:transform .25s, opacity .25s;z-index:29}
+      .settings-panel.collapsed{transform:translateX(108%);opacity:0}
+      .setting-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+      .setting-btn{border:1px solid #d4ddf4;border-radius:10px;padding:8px;text-align:left;cursor:pointer;background:#f4f7ff;color:#44506c;font-weight:700}
+      .setting-btn small{display:block;font-weight:500;color:#697694}
+      .setting-btn.on{background:#384f97;color:#fff;border-color:#384f97}
+      .setting-btn.on small{color:#dce5ff}
+
+      footer{margin-top:14px;border-top:1px solid #d8e0f4;padding-top:12px}
+      #version-button{background:#f3f7ff;color:#20345f;border:1px solid #bcc8ea;border-radius:999px}
+      #version-modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:40}
+      #version-modal.open{display:flex}.modal-content{width:min(900px,94vw);max-height:86vh;overflow-y:auto;background:#fff;border-radius:12px;padding:18px}
+      .modal-header{display:flex;justify-content:space-between;align-items:center}.modal-close{border:none;background:transparent;color:#222;font-size:24px;cursor:pointer}.version-controls{margin:10px 0;display:flex;gap:8px}
+
+      @media(max-width:900px){.controls{grid-template-columns:1fr}.settings-panel{width:92vw;right:4vw;top:130px}.settings-toggle{top:80px;right:10px}}
+    </style>
+  </head>
+  <body>
+    <main class="app">
+      <section class="hero"><img src="logo.svg" alt="Grammar Playground logo" /></section>
+
+      <button id="settings-toggle" class="settings-toggle secondary" type="button">Display settings</button>
+      <aside id="settings-panel" class="settings-panel collapsed">
+        <div class="setting-grid" id="setting-grid"></div>
+      </aside>
+
+      <section class="panel">
+        <div class="controls">
+          <textarea id="sentence-input" placeholder="Type a sentence to analyze..."></textarea>
+          <button id="analyze-btn" type="button">Analyze now</button>
+          <button id="random-btn" type="button" class="secondary">Use random sample</button>
+        </div>
+        <p id="status" role="status" aria-live="polite">Loading sentence…</p>
+        <div id="output" class="sentence-wrap"></div>
+      </section>
+
+      <section class="panel">
+        <label for="word-input"><strong>Single word checker</strong></label>
+        <input type="text" id="word-input" placeholder="Type one word..." />
+        <p id="result">Grammar Type: <span id="grammar-type">---</span></p>
+      </section>
+
+      <section class="panel">
+        <h3 style="margin-top:0">Grammar key</h3>
+        <div id="legend" class="legend"></div>
+      </section>
+
+      <footer><button id="version-button" type="button" aria-haspopup="dialog" aria-controls="version-modal">Version <span id="version-label">1.1.9</span></button></footer>
+    </main>
+
+    <div id="floating-help" class="floating-help"></div>
+
+    <div id="version-modal" role="dialog" aria-modal="true" aria-labelledby="version-title">
+      <div class="modal-content">
+        <div class="modal-header"><h3 id="version-title">Version History</h3><button class="modal-close" id="close-modal" aria-label="Close">×</button></div>
+        <div class="version-controls"><button id="prev-version" type="button">Open previous version</button><button id="next-version" type="button">Open newer version</button></div>
+        <div id="version-history-rendered">Loading history…</div>
+      </div>
+    </div>
+
+    <script src="../../versioning.js"></script>
+    <script>
+      const CURRENT_VERSION = "1.1.9";
+      let sentences = [];
+      const TAG_ORDER=["article","noun","pronoun","verb","adjective","adverb","determiner","preposition","conjunction","interjection","unknown"];
+      const settingDefs=[
+        {id:'realtime',title:'Realtime',desc:'Tag while typing.'},
+        {id:'textColor',title:'Text color',desc:'Color text only.'},
+        {id:'labels',title:'Sub labels',desc:'Labels under words.'},
+        {id:'curvy',title:'Curvy arrows',desc:'All-around labels/arrows.'},
+        {id:'natural',title:'Natural flow',desc:'Sentence-like spacing.'},
+        {id:'autoPunctuate',title:'Auto punctuation',desc:'Comma/quote/full-stop heuristics.'},
+        {id:'highlight',title:'Highlight',desc:'Show colored highlights.'}
+      ];
+      const settings={realtime:true,textColor:false,labels:true,curvy:true,natural:true,autoPunctuate:false,highlight:true};
+      const glossary={article:{definition:"Introduces a noun.",example:"The cat slept.",misconception:"Not an adjective."},noun:{definition:"Names people/places/things.",example:"Garden.",misconception:"Context matters."},pronoun:{definition:"Replaces a noun.",example:"She laughed.",misconception:"Not always subject."},verb:{definition:"Shows action/state.",example:"They run.",misconception:"Can include helpers."},adjective:{definition:"Describes nouns.",example:"Blue sky.",misconception:"Not adverbs."},adverb:{definition:"Modifies verbs/adjectives/adverbs.",example:"Runs quickly.",misconception:"Not always -ly."},determiner:{definition:"Specifies noun reference.",example:"Those books.",misconception:"Different from adjective."},preposition:{definition:"Shows relation in time/space.",example:"On the table.",misconception:"Not a conjunction."},conjunction:{definition:"Connects words/clauses.",example:"Tea and coffee.",misconception:"Doesn’t describe nouns."},interjection:{definition:"Expresses sudden feeling.",example:"Oops!",misconception:"Usually not structural."},unknown:{definition:"Couldn’t confidently classify.",example:"Context needed.",misconception:"Not always wrong."}};
+      const manualRules={prepositions:["to","in","on","at","by","with","about","against","between","into","through","past","under","over","near"],conjunctions:["and","or","but","so","yet","for","nor"],determiners:["this","that","these","those","my","your","his","her","its","our","their"],interjections:["wow","oops","hey","ouch","bravo","alas"]};
+
+      const output=document.getElementById('output'),status=document.getElementById('status'),wordInput=document.getElementById('word-input'),grammarType=document.getElementById('grammar-type'),sentenceInput=document.getElementById('sentence-input'),legend=document.getElementById('legend'),floatingHelp=document.getElementById('floating-help');
+      const normalizeWord=(w)=>w.toLowerCase().replace(/^[^a-z']+|[^a-z']+$/g,"");
+
+      function applyAutoPunctuation(text){
+        let t=text.trim().replace(/\s+/g,' '); if(!t)return t;
+        t=t.charAt(0).toUpperCase()+t.slice(1).replace(/\bi\b/g,'I');
+        t=t.replace(/\b(\w+)\s+(and|but|so|because)\s+(I|you|he|she|they|we)\b/g,'$1, $2 $3');
+        t=t.replace(/\b(\w+),\s*(\w+),\s*(and|or)\s+(\w+)\b/g,'$1, $2, $3 $4');
+        t=t.replace(/\b(he said|she said|they said|he asked|she asked|they asked)\s+([^".!?]+)([.!?])?/i,(m,v,s,p)=>`${v}, "${s.trim()}${p||'.'}"`);
+        if(!/[.!?]$/.test(t)){ if(/\b(wow|amazing|oops|great)\b/i.test(t)) t+='!'; else if(/^(who|what|when|where|why|how)\b/i.test(t)) t+='?'; else t+='.'; }
+        return t;
+      }
+      function getWordClass(word,doc){const n=normalizeWord(word);if(!n)return'unknown';if(doc.match(n).has('#Pronoun'))return'pronoun';if(doc.match(n).has('#Verb'))return'verb';if(doc.match(n).has('#Noun'))return'noun';if(doc.match(n).has('#Adjective'))return'adjective';if(doc.match(n).has('#Adverb'))return'adverb';if(['the','a','an'].includes(n))return'article';if(manualRules.prepositions.includes(n))return'preposition';if(manualRules.conjunctions.includes(n))return'conjunction';if(manualRules.determiners.includes(n))return'determiner';if(manualRules.interjections.includes(n))return'interjection';return'unknown';}
+      function renderLegend(){legend.innerHTML=TAG_ORDER.map((t)=>`<div class="legend-item"><span class="legend-dot ${t}"></span><span class="term ${t}">${t}</span></div>`).join('');}
+      function identifyGrammar(sentence){const words=sentence.match(/\S+/g)||[];const doc=nlp(sentence);return words.map((w,i)=>{const c=getWordClass(w,doc);const label=settings.labels?`<span class="token-label">${c}</span>`:'';return `<span class="token" data-index="${i}" data-pos="${c}"><span class="token-word ${c}">${w}</span>${label}</span>`;});}
+
+      function showFloatingHelp(tag,x,y){const g=glossary[tag]||glossary.unknown;floatingHelp.innerHTML=`<h4>${tag}</h4><p><strong>Definition:</strong> ${g.definition}</p><p><strong>Example:</strong> ${g.example}</p><p><strong>Misconception:</strong> ${g.misconception}</p>`;floatingHelp.style.display='block';floatingHelp.style.left=`${Math.min(window.innerWidth-340,x+14)}px`;floatingHelp.style.top=`${Math.max(16,y-10)}px`;}
+
+      function renderArrowLayer(sentenceNode){
+        sentenceNode.parentElement.querySelectorAll('.arrow-layer,.arrow-label').forEach(n=>n.remove());
+        if(!settings.curvy)return;
+        const tokens=[...sentenceNode.querySelectorAll('.token')];
+        if(!tokens.length)return;
+
+        const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+        svg.setAttribute('class','arrow-layer');
+        svg.innerHTML='<defs><marker id="arrowhead" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="rgba(61,79,122,.88)"/></marker></defs>';
+
+        const hostRect=sentenceNode.parentElement.getBoundingClientRect();
+        tokens.forEach((t,i)=>{
+          const wr=t.querySelector('.token-word').getBoundingClientRect();
+          const x=wr.left-hostRect.left+wr.width/2;
+          const y=wr.top-hostRect.top+wr.height/2;
+
+          const placeTop = i % 2 === 0;
+          const labelX = x + ((i%3)-1)*16;
+          const labelY = placeTop ? 16 + (i%2)*4 : hostRect.height - 12 - (i%2)*4;
+          const ctrlY = placeTop ? y-42 : y+42;
+
+          const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+          path.setAttribute('d',`M ${labelX} ${labelY+2} Q ${x} ${ctrlY} ${x} ${y}`);
+          path.setAttribute('class','arrow-path');
+          svg.appendChild(path);
+
+          const lbl=document.createElement('div');
+          lbl.className='arrow-label';
+          lbl.style.left=`${labelX-20}px`;
+          lbl.style.top=`${labelY-14}px`;
+          lbl.textContent=t.dataset.pos;
+          sentenceNode.parentElement.appendChild(lbl);
+        });
+
+        sentenceNode.parentElement.appendChild(svg);
+      }
+
+      function renderSentence(text){let s=text.trim();if(settings.autoPunctuate)s=applyAutoPunctuation(s);if(!s){output.innerHTML='<em>Please type a sentence first.</em>';return;}output.classList.toggle('natural-mode',settings.natural);output.classList.toggle('no-highlight',!settings.highlight||settings.textColor);const toks=identifyGrammar(s);output.innerHTML=`<div class="sentence">${toks.join(' ')}</div>`;const sn=output.querySelector('.sentence');sn.querySelectorAll('.token-word').forEach(el=>{el.addEventListener('mouseenter',(e)=>{const tag=[...el.classList].find(c=>glossary[c])||'unknown';showFloatingHelp(tag,e.clientX,e.clientY)});el.addEventListener('mouseleave',()=>floatingHelp.style.display='none');});renderArrowLayer(sn);}
+
+      function checkWord(){const w=wordInput.value.trim();if(!w)return grammarType.textContent='---';const n=normalizeWord(w);const doc=nlp(n);let t='Unknown';if(doc.has('#Pronoun'))t='Pronoun';else if(doc.has('#Verb'))t='Verb';else if(doc.has('#Noun'))t='Noun';else if(doc.has('#Adjective'))t='Adjective';else if(doc.has('#Adverb'))t='Adverb';else if(['the','a','an'].includes(n))t='Article';else if(manualRules.prepositions.includes(n))t='Preposition';else if(manualRules.conjunctions.includes(n))t='Conjunction';else if(manualRules.determiners.includes(n))t='Determiner';else if(manualRules.interjections.includes(n))t='Interjection';grammarType.textContent=t;}
+      async function fetchSentences(){const r=await fetch('sentences.json');if(!r.ok)throw new Error(`Unable to load sentences.json (${r.status})`);const d=await r.json();if(!Array.isArray(d.sentences)||!d.sentences.length)throw new Error('sentences.json has no sentences array');sentences=d.sentences;}
+      async function useRandomSentence(){try{if(!sentences.length)await fetchSentences();const s=sentences[Math.floor(Math.random()*sentences.length)];sentenceInput.value=s;renderSentence(s);status.textContent='Loaded a random sentence.';}catch(e){status.textContent=`Could not load sample sentence: ${e.message}`;}}
+
+      function renderSettingButtons(){const grid=document.getElementById('setting-grid');grid.innerHTML=settingDefs.map((d)=>`<button class="setting-btn ${settings[d.id]?'on':''}" data-key="${d.id}">${d.title}<small>${d.desc}</small></button>`).join('');grid.querySelectorAll('.setting-btn').forEach((btn)=>btn.addEventListener('click',()=>{const key=btn.dataset.key;settings[key]=!settings[key];renderSettingButtons();renderSentence(sentenceInput.value);}));}
+      document.getElementById('settings-toggle').addEventListener('click',()=>document.getElementById('settings-panel').classList.toggle('collapsed'));
+      document.getElementById('settings-panel').addEventListener('mouseleave',()=>document.getElementById('settings-panel').classList.add('collapsed'));
+
+      sentenceInput.addEventListener('input',()=>{if(settings.realtime)renderSentence(sentenceInput.value)});
+      document.getElementById('analyze-btn').addEventListener('click',()=>renderSentence(sentenceInput.value));
+      document.getElementById('random-btn').addEventListener('click',useRandomSentence);
+      wordInput.addEventListener('input',checkWord);
+
+      renderLegend();renderSettingButtons();useRandomSentence();initVersioning({ currentVersion: CURRENT_VERSION, rootPrefix: "../../" });
+    </script>
+  </body>
+</html>

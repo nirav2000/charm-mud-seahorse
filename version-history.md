@@ -1,5 +1,13 @@
 # Version History
 
+## 1.2.0 - 2026-03-31
+- Refactored app into a production-ready iPad-first structure with exactly 5 sections: app bar, sentence input card, analysis canvas card, single-word checker card, and version-history drawer.
+- Rebuilt UI architecture with a clean design system (soft background, white cards, consistent spacing/radius/shadow, restrained accent colors).
+- Simplified controls to a primary analyze action + secondary sample action and moved compact settings into a subtle icon-driven side drawer.
+- Rebuilt analysis canvas as a diagram board with separated label/token layers and connector SVG lines behind tokens to avoid collisions.
+- Redesigned version history into a polished right-side timeline drawer with version, date, summary, and direct navigation.
+- Archived `1.1.9` under `versions/1.1.9/`.
+
 ## 1.1.9 - 2026-03-31
 - Fixed arrow/label overlap by re-anchoring labels close to their own words with shorter paths.
 - Prevented far-away grammatical labels by constraining label placement near each token.
