@@ -5,51 +5,205 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Highlight parts of speech in a sentence and check grammar type for a single word."
+      content="Color-coded grammar highlighter with parts-of-speech labels, sentence analysis, and version history."
     />
     <title>Grammar Highlighter</title>
     <script src="https://unpkg.com/compromise"></script>
     <style>
-      body { font-family: Arial, sans-serif; margin: 24px; }
-      .sentence { font-size: 18px; line-height: 1.6; margin-top: 14px; }
-      .word { padding: 3px; border-radius: 4px; transition: background 0.3s ease; cursor: default; }
-      .pronoun { background-color: lightblue; }
-      .verb { background-color: lightgreen; }
-      .noun { background-color: lightcoral; }
-      .article { background-color: lightyellow; }
-      .adjective { background-color: lightpink; }
-      .adverb { background-color: lightgray; }
-      .preposition { background-color: lightcyan; }
-      .conjunction { background-color: lightgoldenrodyellow; }
-      .determiner { background-color: lightseagreen; }
-      .unknown { background-color: #ececec; }
-      #word-input { padding: 8px; font-size: 16px; margin: 10px 0; }
-      #result { font-size: 18px; font-weight: bold; margin-top: 10px; }
-      #status { color: #444; margin-top: 8px; }
-      footer { margin-top: 28px; border-top: 1px solid #ddd; padding-top: 12px; }
-      #version-button { background: #f5f5f5; border: 1px solid #bbb; border-radius: 999px; padding: 6px 12px; cursor: pointer; }
-      #version-modal { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); display: none; align-items: center; justify-content: center; }
+      :root {
+        --bg: #f6f8ff;
+        --card: #ffffff;
+        --text: #1b1f2a;
+        --muted: #5f6982;
+      }
+
+      body {
+        font-family: "Inter", "Segoe UI", Arial, sans-serif;
+        margin: 0;
+        background: linear-gradient(180deg, #f4f7ff 0%, #eef9ff 100%);
+        color: var(--text);
+      }
+
+      .app {
+        max-width: 980px;
+        margin: 28px auto;
+        padding: 0 16px 24px;
+      }
+
+      .hero {
+        background: var(--card);
+        border-radius: 18px;
+        box-shadow: 0 12px 28px rgba(31, 47, 90, 0.1);
+        padding: 24px;
+        margin-bottom: 16px;
+      }
+
+      .hero h1 {
+        margin: 0;
+        font-size: 2rem;
+      }
+
+      .hero p {
+        color: var(--muted);
+        margin-top: 8px;
+        margin-bottom: 0;
+      }
+
+      .panel {
+        background: var(--card);
+        border-radius: 16px;
+        box-shadow: 0 10px 24px rgba(31, 47, 90, 0.08);
+        padding: 18px;
+        margin-bottom: 14px;
+      }
+
+      .controls {
+        display: grid;
+        grid-template-columns: 1fr auto auto;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+
+      textarea,
+      input {
+        font-family: inherit;
+        border: 1px solid #cfd7ee;
+        border-radius: 10px;
+        padding: 10px 12px;
+        font-size: 1rem;
+      }
+
+      textarea {
+        min-height: 80px;
+        resize: vertical;
+      }
+
+      button {
+        border: none;
+        border-radius: 10px;
+        padding: 10px 14px;
+        background: #3557f6;
+        color: #fff;
+        cursor: pointer;
+        font-weight: 600;
+      }
+
+      button.secondary {
+        background: #5f6982;
+      }
+
+      #status {
+        color: var(--muted);
+        margin: 6px 0 0;
+      }
+
+      .sentence {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        line-height: 1.4;
+      }
+
+      .token {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        border-radius: 10px;
+        padding: 8px 9px;
+        min-width: 42px;
+      }
+
+      .token-word {
+        font-size: 1.35rem;
+        font-weight: 700;
+      }
+
+      .token-label {
+        font-size: 0.72rem;
+        opacity: 0.9;
+        text-transform: lowercase;
+      }
+
+      .legend {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 8px;
+      }
+
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.9rem;
+      }
+
+      .swatch {
+        width: 16px;
+        height: 16px;
+        border-radius: 4px;
+        border: 1px solid rgba(0, 0, 0, 0.15);
+      }
+
+      .pronoun { background: #bde3ff; }
+      .verb { background: #b8ffd4; }
+      .noun { background: #ffc3cc; }
+      .article { background: #fff4b8; }
+      .adjective { background: #ffd0ef; }
+      .adverb { background: #d6d6d6; }
+      .preposition { background: #c4f3ff; }
+      .conjunction { background: #fbe4a3; }
+      .determiner { background: #b9f7d4; }
+      .interjection { background: #d6b9ff; }
+      .unknown { background: #e8ecf5; }
+
+      footer { margin-top: 20px; border-top: 1px solid #d8def0; padding-top: 12px; }
+      #version-button { background: #f5f7ff; color: #223; border: 1px solid #bbc6ea; border-radius: 999px; }
+      #version-modal { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none; align-items: center; justify-content: center; z-index: 10; }
       #version-modal.open { display: flex; }
-      .modal-content { width: min(800px, 90vw); max-height: 85vh; overflow-y: auto; background: #fff; border-radius: 10px; padding: 18px; }
+      .modal-content { width: min(860px, 92vw); max-height: 85vh; overflow-y: auto; background: #fff; border-radius: 12px; padding: 16px; }
       .modal-header { display: flex; justify-content: space-between; align-items: center; }
-      .modal-close { border: none; background: transparent; font-size: 22px; cursor: pointer; }
-      .version-controls { margin: 12px 0; display: flex; gap: 8px; }
-      .version-controls button { padding: 6px 10px; cursor: pointer; }
+      .modal-close { border: none; background: transparent; color: #222; font-size: 24px; cursor: pointer; }
+      .version-controls { margin: 10px 0; display: flex; gap: 8px; }
+
+      @media (max-width: 760px) {
+        .controls { grid-template-columns: 1fr; }
+      }
     </style>
   </head>
   <body>
-    <h2>Grammar Highlighter</h2>
-    <label for="word-input">Enter a word to check its grammar:</label>
-    <input type="text" id="word-input" placeholder="Type a word..." />
-    <p id="result">Grammar Type: <span id="grammar-type">---</span></p>
-    <p id="status" role="status" aria-live="polite">Loading sentence…</p>
-    <div id="output"></div>
+    <main class="app">
+      <section class="hero">
+        <h1>Grammar Highlighter</h1>
+        <p>Type any sentence and see each word labeled with its part of speech.</p>
+      </section>
 
-    <footer>
-      <button id="version-button" type="button" aria-haspopup="dialog" aria-controls="version-modal">
-        Version <span id="version-label">1.1.1</span>
-      </button>
-    </footer>
+      <section class="panel">
+        <div class="controls">
+          <textarea id="sentence-input" placeholder="Type a sentence to analyze..."></textarea>
+          <button id="analyze-btn" type="button">Analyze sentence</button>
+          <button id="random-btn" type="button" class="secondary">Use random sample</button>
+        </div>
+        <p id="status" role="status" aria-live="polite">Loading sentence…</p>
+        <div id="output"></div>
+      </section>
+
+      <section class="panel">
+        <label for="word-input"><strong>Single word checker</strong></label>
+        <input type="text" id="word-input" placeholder="Type one word..." />
+        <p id="result">Grammar Type: <span id="grammar-type">---</span></p>
+      </section>
+
+      <section class="panel">
+        <h3 style="margin-top:0">Color key</h3>
+        <div id="legend" class="legend"></div>
+      </section>
+
+      <footer>
+        <button id="version-button" type="button" aria-haspopup="dialog" aria-controls="version-modal">
+          Version <span id="version-label">1.1.3</span>
+        </button>
+      </footer>
+    </main>
 
     <div id="version-modal" role="dialog" aria-modal="true" aria-labelledby="version-title">
       <div class="modal-content">
@@ -67,18 +221,22 @@
 
     <script src="versioning.js"></script>
     <script>
-      const CURRENT_VERSION = "1.1.1";
+      const CURRENT_VERSION = "1.1.3";
       let sentences = [];
+      const TAG_ORDER = ["article", "noun", "pronoun", "verb", "adjective", "adverb", "determiner", "preposition", "conjunction", "interjection", "unknown"];
       const manualRules = {
-        prepositions: ["to", "in", "on", "at", "by", "with", "about", "against", "between", "into", "through"],
+        prepositions: ["to", "in", "on", "at", "by", "with", "about", "against", "between", "into", "through", "past", "under", "over", "near"],
         conjunctions: ["and", "or", "but", "so", "yet", "for", "nor"],
-        determiners: ["this", "that", "these", "those", "my", "your", "his", "her", "its", "our", "their"]
+        determiners: ["this", "that", "these", "those", "my", "your", "his", "her", "its", "our", "their"],
+        interjections: ["wow", "oops", "hey", "ouch", "bravo", "alas"]
       };
 
       const output = document.getElementById("output");
       const grammarType = document.getElementById("grammar-type");
       const status = document.getElementById("status");
       const wordInput = document.getElementById("word-input");
+      const sentenceInput = document.getElementById("sentence-input");
+      const legend = document.getElementById("legend");
 
       function normalizeWord(word) {
         return word.toLowerCase().replace(/^[^a-z']+|[^a-z']+$/g, "");
@@ -96,14 +254,39 @@
         if (manualRules.prepositions.includes(normalized)) return "preposition";
         if (manualRules.conjunctions.includes(normalized)) return "conjunction";
         if (manualRules.determiners.includes(normalized)) return "determiner";
+        if (manualRules.interjections.includes(normalized)) return "interjection";
         return "unknown";
+      }
+
+      function renderLegend() {
+        legend.innerHTML = TAG_ORDER.map((tag) =>
+          `<div class="legend-item"><span class="swatch ${tag}"></span><span>${tag}</span></div>`
+        ).join("");
       }
 
       function identifyGrammar(sentence) {
         const words = sentence.match(/\S+/g) || [];
         const doc = nlp(sentence);
-        const html = words.map((word) => `<span class="word ${getWordClass(word, doc)}" title="${getWordClass(word, doc)}">${word}</span>`).join(" ");
+
+        const html = words.map((word) => {
+          const wordClass = getWordClass(word, doc);
+          return `
+            <span class="token ${wordClass}" title="${wordClass}">
+              <span class="token-word">${word}</span>
+              <span class="token-label">${wordClass}</span>
+            </span>
+          `;
+        }).join(" ");
+
         return `<div class="sentence">${html}</div>`;
+      }
+
+      function renderSentence(sentence) {
+        if (!sentence.trim()) {
+          output.innerHTML = "<em>Please type a sentence first.</em>";
+          return;
+        }
+        output.innerHTML = identifyGrammar(sentence);
       }
 
       function checkWord() {
@@ -112,9 +295,11 @@
           grammarType.textContent = "---";
           return;
         }
+
         const normalized = normalizeWord(inputWord);
         const doc = nlp(normalized);
         let detectedType = "Unknown";
+
         if (doc.has("#Pronoun")) detectedType = "Pronoun";
         else if (doc.has("#Verb")) detectedType = "Verb";
         else if (doc.has("#Noun")) detectedType = "Noun";
@@ -124,6 +309,8 @@
         else if (manualRules.prepositions.includes(normalized)) detectedType = "Preposition";
         else if (manualRules.conjunctions.includes(normalized)) detectedType = "Conjunction";
         else if (manualRules.determiners.includes(normalized)) detectedType = "Determiner";
+        else if (manualRules.interjections.includes(normalized)) detectedType = "Interjection";
+
         grammarType.textContent = detectedType;
       }
 
@@ -131,24 +318,32 @@
         const response = await fetch("sentences.json");
         if (!response.ok) throw new Error(`Unable to load sentences.json (${response.status})`);
         const data = await response.json();
-        if (!Array.isArray(data.sentences) || data.sentences.length === 0) throw new Error("sentences.json has no sentences array");
+        if (!Array.isArray(data.sentences) || data.sentences.length === 0) {
+          throw new Error("sentences.json has no sentences array");
+        }
         sentences = data.sentences;
       }
 
-      async function renderRandomSentence() {
+      async function useRandomSentence() {
         try {
-          await fetchSentences();
+          if (sentences.length === 0) {
+            await fetchSentences();
+          }
           const randomSentence = sentences[Math.floor(Math.random() * sentences.length)];
-          output.innerHTML = identifyGrammar(randomSentence);
+          sentenceInput.value = randomSentence;
+          renderSentence(randomSentence);
           status.textContent = "Loaded a random sentence.";
         } catch (error) {
-          output.textContent = "";
           status.textContent = `Could not load sample sentence: ${error.message}`;
         }
       }
 
+      document.getElementById("analyze-btn").addEventListener("click", () => renderSentence(sentenceInput.value));
+      document.getElementById("random-btn").addEventListener("click", useRandomSentence);
       wordInput.addEventListener("input", checkWord);
-      renderRandomSentence();
+
+      renderLegend();
+      useRandomSentence();
       initVersioning({ currentVersion: CURRENT_VERSION, rootPrefix: "" });
     </script>
   </body>

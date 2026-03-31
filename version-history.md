@@ -1,5 +1,15 @@
 # Version History
 
+## 1.1.3 - 2026-03-31
+- Refreshed the UI with card layouts, clearer controls, and improved readability.
+- Added sentence input + analyze flow so users can paste/type any sentence and classify it.
+- Added an always-visible color key and per-token labels to make part-of-speech output easier to understand.
+
+## 1.1.2 - 2026-03-31
+- Added direct links in the version modal so users can open any available version (not just previous/next).
+- Archived and published `1.1.0` under `versions/1.1.0/` so it is accessible.
+- Kept previous/next navigation and unified all version pages on the same shared `versioning.js` source.
+
 ## 1.1.1 - 2026-03-31
 - Added shared `versioning.js` so both current and archived pages use the same version-history modal behavior.
 - Enabled version modal navigation from archived pages (e.g., `versions/1.0.0/index.html`) back to newer versions.
