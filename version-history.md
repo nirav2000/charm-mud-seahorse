@@ -1,3 +1,8 @@
+## 1.3.7 - 2026-03-31
+- Follow-up release after review feedback on `1.3.6`.
+- Archived `1.3.6` under `versions/1.3.6/`.
+- Bumped runtime/app version metadata to `1.3.7`.
+
 # Version History
 
 ## 1.3.6 - 2026-03-31
