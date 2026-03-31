@@ -1,5 +1,11 @@
 # Version History
 
+## 1.1.4 - 2026-03-31
+- Added real-time grammar tagging while users type in the sentence box.
+- Added display settings: realtime on/off, color-text mode, inline labels, and curvy-arrow label row.
+- Updated sentence rendering to feel more natural and less blocky by using flowing inline words with optional annotations.
+- Added archived copy of `1.1.3` under `versions/1.1.3/`.
+
 ## 1.1.3 - 2026-03-31
 - Refreshed the UI with card layouts, clearer controls, and improved readability.
 - Added sentence input + analyze flow so users can paste/type any sentence and classify it.
