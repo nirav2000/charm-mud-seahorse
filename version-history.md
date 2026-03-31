@@ -1,5 +1,18 @@
 # Version History
 
+## 1.1.8 - 2026-03-31
+- Added a **toggleable no-highlight mode** (`Highlight` off) so users can remove highlighting entirely.
+- Improved label placement so labels appear directly under words (sub-label style).
+- Reworked arrows and grammatical labels to appear around all sides of the sentence (top, bottom, left, right), with arrowheads and varied paths.
+- Added floating hover glossary cards that appear near the hovered word.
+- Replaced text title with a dedicated `logo.svg` logo and removed duplicate heading text.
+- Updated key styles to remove “sample” wording and show grammatical terms with correct class colors.
+- Reworked display settings into an auto-collapsing side panel with dark/on and light/off toggle buttons.
+- Kept auto punctuation as a display setting and improved punctuation heuristics.
+- Improved version-history markdown viewer formatting and removed top quick-link list.
+- Fixed latest-version heading links to open current `index.html` rather than a missing archive directory.
+- Archived `1.1.7` under `versions/1.1.7/`.
+
 ## 1.1.7 - 2026-03-31
 - Fixed labels to render as true sub-labels beneath words instead of appearing beside them.
 - Improved natural sentence mode so tokens flow like a real sentence without blocky spacing.
