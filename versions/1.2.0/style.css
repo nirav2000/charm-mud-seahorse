@@ -104,10 +104,10 @@ textarea { min-height: 102px; resize: vertical; }
 .analysis-canvas {
   position: relative;
   min-height: 260px;
-  border-radius: 14px;
-  padding: 18px 12px 10px;
-  overflow: visible;
-  background: rgba(255,255,255,0.62);
+  border: 1px dashed #d8e1f1;
+  border-radius: 12px;
+  padding: 22px 18px 18px;
+  overflow: hidden;
 }
 .connector-layer {
   position: absolute;
@@ -116,26 +116,37 @@ textarea { min-height: 102px; resize: vertical; }
   height: 100%;
   pointer-events: none;
 }
-.token-layer {
+.label-layer {
   position: relative;
-  min-height: 120px;
+  min-height: 76px;
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 14px 12px;
+  gap: 10px 14px;
+  align-items: flex-end;
+}
+.token-layer {
+  position: relative;
+  min-height: 70px;
+  margin-top: 28px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
+.label-chip {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: #f2f5ff;
+  border: 1px solid #d6def4;
+}
 .token {
   display: inline-flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  position: relative;
-  padding: 2px 4px 6px;
-  border-radius: 10px;
-  transition: background-color .2s ease;
+  gap: 3px;
 }
-.token.is-active { background: rgba(52,91,255,.08); }
 .token-word {
   font-size: 1.8rem;
   line-height: 1;
@@ -144,9 +155,8 @@ textarea { min-height: 102px; resize: vertical; }
   border-radius: 8px;
 }
 .token-sub {
-  font-size: 0.74rem;
+  font-size: 0.72rem;
   color: #5c6d91;
-  font-weight: 600;
 }
 
 /* POS colors */
@@ -170,32 +180,6 @@ textarea { min-height: 102px; resize: vertical; }
   align-items: start;
 }
 .checker-result p { margin: 0 0 6px; }
-
-
-.word-popover {
-  position: fixed;
-  z-index: 45;
-  width: min(360px, 90vw);
-  background: #fff;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  box-shadow: 0 14px 30px rgba(22,38,78,.2);
-  padding: 12px;
-}
-.word-popover h4 { margin: 0 0 8px; }
-.word-popover p { margin: 4px 0; font-size: .88rem; color: #3f4f6f; }
-.word-popover .meta { font-size: .78rem; color: #687899; }
-@media (max-width: 900px) {
-  .word-popover {
-    left: 0 !important;
-    right: 0 !important;
-    bottom: 0;
-    top: auto !important;
-    width: 100vw;
-    max-width: none;
-    border-radius: 14px 14px 0 0;
-  }
-}
 
 /* === 8) Drawers === */
 .drawer {

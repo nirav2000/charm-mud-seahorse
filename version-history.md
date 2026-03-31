@@ -1,5 +1,13 @@
 # Version History
 
+## 1.2.1 - 2026-03-31
+- Refined analysis canvas presentation to a lighter, calmer educational board.
+- Removed top grammar labels and standardized labels below words only.
+- Added robust token interaction for desktop hover + iPad/touch tap.
+- Added rich per-word detail popover/bottom-sheet with role, explanation, phrase membership, alternative uses, and extra example.
+- Kept connector lines behind tokens with cleaner auto-positioning and no floating top labels.
+- Archived `1.2.0` under `versions/1.2.0/`.
+
 ## 1.2.0 - 2026-03-31
 - Refactored app into a production-ready iPad-first structure with exactly 5 sections: app bar, sentence input card, analysis canvas card, single-word checker card, and version-history drawer.
 - Rebuilt UI architecture with a clean design system (soft background, white cards, consistent spacing/radius/shadow, restrained accent colors).

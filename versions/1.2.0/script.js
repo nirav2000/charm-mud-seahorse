@@ -1,15 +1,13 @@
+const POS_ORDER = [
+  "article", "noun", "pronoun", "verb", "adjective", "adverb",
+  "determiner", "preposition", "conjunction", "interjection", "unknown"
+];
+
 const POS_INFO = {
-  article: "Introduces a noun and signals specificity.",
-  noun: "Names a person, place, thing, or idea.",
-  pronoun: "Replaces a noun phrase.",
-  verb: "Expresses action or state.",
-  adjective: "Describes a noun/pronoun.",
-  adverb: "Modifies a verb, adjective, or adverb.",
-  determiner: "Specifies reference of a noun.",
-  preposition: "Shows relationship in time/space.",
-  conjunction: "Connects words or clauses.",
-  interjection: "Expresses sudden emotion.",
-  unknown: "Could not confidently classify in this context."
+  article: "Introduces a noun.", noun: "Names a person/place/thing/idea.", pronoun: "Replaces a noun.",
+  verb: "Shows action or state.", adjective: "Describes a noun/pronoun.", adverb: "Modifies verb/adjective/adverb.",
+  determiner: "Specifies which noun.", preposition: "Shows relation in space/time.", conjunction: "Connects words/clauses.",
+  interjection: "Expresses emotion.", unknown: "Could not confidently classify."
 };
 
 const manualRules = {
@@ -20,11 +18,13 @@ const manualRules = {
 };
 
 const state = {
-  version: "1.2.1",
-  settings: { autoPunctuate: true, showLabels: true, showConnectors: true },
-  sentences: [],
-  activeIndex: null,
-  parsed: []
+  version: "1.2.0",
+  settings: {
+    autoPunctuate: true,
+    showLabels: true,
+    showConnectors: true
+  },
+  sentences: []
 };
 
 const el = {
@@ -33,11 +33,11 @@ const el = {
   sampleBtn: document.getElementById("sample-btn"),
   status: document.getElementById("status"),
   tokenLayer: document.getElementById("token-layer"),
+  labelLayer: document.getElementById("label-layer"),
   connectorLayer: document.getElementById("connector-layer"),
   wordInput: document.getElementById("word-input"),
   grammarType: document.getElementById("grammar-type"),
   grammarExplanation: document.getElementById("grammar-explanation"),
-  popover: document.getElementById("word-popover"),
   settingsBtn: document.getElementById("settings-btn"),
   settingsDrawer: document.getElementById("settings-drawer"),
   settingsClose: document.getElementById("settings-close"),
@@ -50,50 +50,17 @@ const el = {
 
 const normalizeWord = (word) => word.toLowerCase().replace(/^[^a-z']+|[^a-z']+$/g, "");
 
-function roleForPos(pos) {
-  const roleMap = {
-    article: "signals noun reference", noun: "main content word", pronoun: "noun substitute", verb: "action/state core",
-    adjective: "describes noun", adverb: "modifies action/quality", determiner: "limits noun reference",
-    preposition: "links phrase relation", conjunction: "joins units", interjection: "expressive insertion", unknown: "context-sensitive"
-  };
-  return roleMap[pos] || "contextual role";
-}
-
-function phraseMembership(index, items) {
-  const prev = items[index - 1]?.pos;
-  const next = items[index + 1]?.pos;
-  if ((prev === "article" || prev === "determiner") && (items[index].pos === "adjective" || items[index].pos === "noun")) return "likely noun phrase";
-  if (items[index].pos === "preposition") return "prepositional phrase starter";
-  if (items[index].pos === "verb" && (next === "noun" || next === "pronoun")) return "verb phrase core";
-  return "standalone or mixed phrase";
-}
-
-function altUse(pos) {
-  const map = {
-    noun: "Many nouns can act as adjectives in compounds.",
-    verb: "Some verbs can also be nouns (e.g., run).",
-    adjective: "Some adjectives may be used as nouns in fixed expressions.",
-    adverb: "Adverbs can also function as discourse markers.",
-    unknown: "This token may change class in another sentence."
-  };
-  return map[pos] || "Can vary by context.";
-}
-
-function exampleForPos(pos) {
-  const e = {
-    article: "The apple fell.", noun: "Music matters.", pronoun: "They arrived.", verb: "Birds fly.", adjective: "Bright light.",
-    adverb: "She spoke softly.", determiner: "Those books.", preposition: "Under the bridge.", conjunction: "Tea and coffee.",
-    interjection: "Oops! I dropped it.", unknown: "Meaning depends on context."
-  };
-  return e[pos] || "Example depends on context.";
-}
-
 function autoPunctuate(text) {
   let t = text.trim().replace(/\s+/g, " ");
   if (!t) return t;
   t = t.charAt(0).toUpperCase() + t.slice(1).replace(/\bi\b/g, "I");
   t = t.replace(/\b(\w+)\s+(and|but|so|because)\s+(I|you|he|she|they|we)\b/g, "$1, $2 $3");
-  if (!/[.!?]$/.test(t)) t += /^(who|what|when|where|why|how)\b/i.test(t) ? "?" : ".";
+  t = t.replace(/\b(he said|she said|they said|he asked|she asked|they asked)\s+([^".!?]+)([.!?])?/i, (m, v, s, p) => `${v}, "${s.trim()}${p || "."}"`);
+  if (!/[.!?]$/.test(t)) {
+    if (/\b(wow|amazing|oops|great)\b/i.test(t)) t += "!";
+    else if (/^(who|what|when|where|why|how)\b/i.test(t)) t += "?";
+    else t += ".";
+  }
   return t;
 }
 
@@ -121,103 +88,72 @@ function parseSentence(sentence) {
 
 function renderTokens(items) {
   el.tokenLayer.innerHTML = items.map((item) => `
-    <button class="token ${state.activeIndex === item.idx ? "is-active" : ""}" data-index="${item.idx}">
+    <span class="token" data-index="${item.idx}">
       <span class="token-word pos-${item.pos}">${item.word}</span>
       <span class="token-sub">${state.settings.showLabels ? item.pos : ""}</span>
-    </button>
+    </span>
   `).join("");
+}
+
+function renderLabels(items) {
+  el.labelLayer.innerHTML = items.map((item) => `<span class="label-chip">${item.pos}</span>`).join("");
 }
 
 function renderConnectors(items) {
   el.connectorLayer.innerHTML = "";
   if (!state.settings.showConnectors) return;
-  const hostRect = el.connectorLayer.getBoundingClientRect();
+
   const tokenNodes = [...el.tokenLayer.querySelectorAll(".token")];
+  const labelNodes = [...el.labelLayer.querySelectorAll(".label-chip")];
+  const hostRect = el.connectorLayer.getBoundingClientRect();
+
+  const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+  const marker = document.createElementNS("http://www.w3.org/2000/svg", "marker");
+  marker.setAttribute("id", "arrowhead");
+  marker.setAttribute("markerWidth", "7");
+  marker.setAttribute("markerHeight", "7");
+  marker.setAttribute("refX", "6");
+  marker.setAttribute("refY", "3.5");
+  marker.setAttribute("orient", "auto");
+  const markerPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  markerPath.setAttribute("d", "M0,0 L7,3.5 L0,7");
+  markerPath.setAttribute("fill", "#7f8db2");
+  marker.appendChild(markerPath);
+  defs.appendChild(marker);
+  el.connectorLayer.appendChild(defs);
 
   items.forEach((item, i) => {
-    const node = tokenNodes[i];
-    const wordNode = node.querySelector(".token-word").getBoundingClientRect();
-    const labelNode = node.querySelector(".token-sub").getBoundingClientRect();
-    const sx = wordNode.left - hostRect.left + wordNode.width / 2;
-    const sy = wordNode.bottom - hostRect.top;
-    const ex = labelNode.left - hostRect.left + labelNode.width / 2;
-    const ey = labelNode.top - hostRect.top;
+    const tokenRect = tokenNodes[i].getBoundingClientRect();
+    const labelRect = labelNodes[i].getBoundingClientRect();
+    const sx = labelRect.left - hostRect.left + labelRect.width / 2;
+    const sy = labelRect.bottom - hostRect.top;
+    const ex = tokenRect.left - hostRect.left + tokenRect.width / 2;
+    const ey = tokenRect.top - hostRect.top;
     const cx = (sx + ex) / 2;
-    const cy = sy + 8;
+    const cy = sy + 26;
 
     const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
     path.setAttribute("d", `M ${sx} ${sy} Q ${cx} ${cy} ${ex} ${ey}`);
     path.setAttribute("fill", "none");
-    path.setAttribute("stroke", "#c1cde6");
-    path.setAttribute("stroke-width", "1.2");
+    path.setAttribute("stroke", "#8d9bbd");
+    path.setAttribute("stroke-width", "1.5");
+    path.setAttribute("marker-end", "url(#arrowhead)");
     el.connectorLayer.appendChild(path);
-  });
-}
-
-function hidePopover() {
-  el.popover.hidden = true;
-}
-
-function showPopover(index, targetEl) {
-  const item = state.parsed[index];
-  if (!item) return;
-  state.activeIndex = index;
-
-  el.popover.innerHTML = `
-    <h4>${item.word}</h4>
-    <p><strong>Part of speech:</strong> ${item.pos}</p>
-    <p><strong>Role in sentence:</strong> ${roleForPos(item.pos)}</p>
-    <p><strong>Why this classification:</strong> ${POS_INFO[item.pos]}</p>
-    <p><strong>Phrase membership:</strong> ${phraseMembership(index, state.parsed)}</p>
-    <p><strong>Alternative uses:</strong> ${altUse(item.pos)}</p>
-    <p class="meta"><strong>Extra example:</strong> ${exampleForPos(item.pos)}</p>
-  `;
-  el.popover.hidden = false;
-
-  const rect = targetEl.getBoundingClientRect();
-  if (window.innerWidth <= 980) {
-    el.popover.style.left = "0px";
-    el.popover.style.top = "auto";
-    el.popover.style.bottom = "0px";
-  } else {
-    el.popover.style.bottom = "auto";
-    el.popover.style.left = `${Math.min(window.innerWidth - 380, rect.left + 12)}px`;
-    el.popover.style.top = `${Math.max(14, rect.bottom + 10)}px`;
-  }
-
-  renderTokens(state.parsed);
-  requestAnimationFrame(() => renderConnectors(state.parsed));
-}
-
-function wireTokenInteractions() {
-  el.tokenLayer.querySelectorAll(".token").forEach((node) => {
-    const index = Number(node.dataset.index);
-    node.addEventListener("mouseenter", (ev) => {
-      if (!window.matchMedia("(hover: hover)").matches) return;
-      showPopover(index, ev.currentTarget);
-    });
-    node.addEventListener("click", (ev) => showPopover(index, ev.currentTarget));
   });
 }
 
 function renderAnalysis(rawText) {
   const text = state.settings.autoPunctuate ? autoPunctuate(rawText) : rawText.trim();
-  state.activeIndex = null;
-  hidePopover();
-
   if (!text) {
-    state.parsed = [];
     el.tokenLayer.innerHTML = "";
+    el.labelLayer.innerHTML = "";
     el.connectorLayer.innerHTML = "";
     return;
   }
-
-  state.parsed = parseSentence(text);
-  renderTokens(state.parsed);
-  requestAnimationFrame(() => {
-    renderConnectors(state.parsed);
-    wireTokenInteractions();
-  });
+  const parsed = parseSentence(text);
+  renderLabels(parsed);
+  renderTokens(parsed);
+  requestAnimationFrame(() => renderConnectors(parsed));
 }
 
 function checkWord(value) {
@@ -265,7 +201,13 @@ async function loadVersionHistory() {
     const [, version, date, body] = m;
     const firstBullet = (body.match(/^-\s+(.+)/m) || ["", "No summary"])[1];
     const href = version === state.version ? "index.html" : `versions/${version}/index.html`;
-    return `<article class="timeline-item"><a href="${href}">v${version}</a><div class="timeline-date">${date}</div><p class="timeline-summary">${firstBullet}</p></article>`;
+    return `
+      <article class="timeline-item">
+        <a href="${href}">v${version}</a>
+        <div class="timeline-date">${date}</div>
+        <p class="timeline-summary">${firstBullet}</p>
+      </article>
+    `;
   }).join("");
 }
 
@@ -293,15 +235,6 @@ function init() {
       renderSettingsButtons();
       renderAnalysis(el.input.value);
     });
-  });
-
-  document.addEventListener("click", (e) => {
-    if (!el.popover.hidden && !el.popover.contains(e.target) && !e.target.closest(".token")) {
-      hidePopover();
-      state.activeIndex = null;
-      renderTokens(state.parsed);
-      requestAnimationFrame(() => renderConnectors(state.parsed));
-    }
   });
 }
 
