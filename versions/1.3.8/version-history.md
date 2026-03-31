@@ -1,10 +1,3 @@
-## 1.3.9 - 2026-03-31
-- Refined word popover placement so it never overlaps the sentence line: desktop positioning now forces the panel fully above or fully below the sentence region.
-- Upgraded popover visuals with gradient card styling, stronger border/shadow, improved close button, and structured field rows for readability.
-- Added popover measuring mode for accurate dynamic height placement.
-- Archived `1.3.8` under `versions/1.3.8/`.
-- Bumped runtime/app version metadata to `1.3.9`.
-
 ## 1.3.8 - 2026-03-31
 - Follow-up release after review feedback on `1.3.7`.
 - Added one-time token-line container listener binding and kept token-level listener rebinding per render.

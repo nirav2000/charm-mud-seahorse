@@ -78,14 +78,12 @@ textarea{width:100%;min-height:96px;border:1px solid #cdd8ee;border-radius:12px;
 @keyframes drawIn{from{stroke-dashoffset:120}to{stroke-dashoffset:0}}
 .connector{stroke-dasharray:160;animation:drawIn .35s ease forwards;opacity:.8}
 
-.word-popover{position:absolute;z-index:8;max-width:360px;background:linear-gradient(165deg,#ffffff 0%,#f5f8ff 100%);border:1px solid #bfd0f7;border-radius:18px;box-shadow:0 20px 46px rgba(35,61,121,.2);padding:14px 16px;opacity:0;transform:translateY(6px) scale(.98);pointer-events:none;transition:opacity .2s ease, transform .2s ease}
+.word-popover{position:absolute;z-index:8;max-width:320px;background:#fff;border:1px solid #d8e3fb;border-radius:14px;box-shadow:0 14px 36px rgba(35,61,121,.16);padding:12px 14px;opacity:0;transform:translateY(6px) scale(.98);pointer-events:none;transition:opacity .2s ease, transform .2s ease}
 .word-popover.open{opacity:1;transform:translateY(0) scale(1);pointer-events:auto}
-.word-popover.is-measuring{visibility:hidden;pointer-events:none;opacity:0;transform:none}
-.popover-close{position:absolute;right:10px;top:10px;border:none;background:#e8efff;color:#24417a;border-radius:999px;width:30px;height:30px;font-size:22px;line-height:1;cursor:pointer;box-shadow:inset 0 -1px 0 rgba(0,0,0,.06)}
-.popover-close:hover{background:#dce8ff}
-#popover-content{padding-right:30px}
-#popover-content .k{font-weight:800;color:#223a67}
-#popover-content p{margin:8px 0;color:#41567d;font-size:.94rem;line-height:1.42;background:#f7faff;border:1px solid #e1e9fb;border-radius:10px;padding:7px 9px}
+.popover-close{position:absolute;right:8px;top:7px;border:none;background:#eff3ff;color:#2a4582;border-radius:999px;width:24px;height:24px;font-size:18px;line-height:1;cursor:pointer}
+#popover-content{padding-right:20px}
+#popover-content .k{font-weight:700;color:#2a3e68}
+#popover-content p{margin:6px 0;color:#46597f;font-size:.92rem;line-height:1.35}
 
 @media (max-width:980px){
   .input-row{grid-template-columns:1fr}
@@ -94,5 +92,5 @@ textarea{width:100%;min-height:96px;border:1px solid #cdd8ee;border-radius:12px;
   .word{font-size:1.65rem}
   .analysis-stage{padding:22px 14px 80px}
   .token{margin-bottom:18px}
-  .word-popover{position:fixed;left:14px;right:14px;bottom:14px;top:auto;max-width:none;border-radius:18px;padding:14px 14px 12px}
+  .word-popover{position:fixed;left:14px;right:14px;bottom:14px;top:auto;max-width:none;border-radius:16px;padding:14px 14px 12px}
 }

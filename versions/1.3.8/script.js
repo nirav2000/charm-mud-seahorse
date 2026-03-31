@@ -1,5 +1,5 @@
 const state = {
-  version: "1.3.9",
+  version: "1.3.8",
   settings: { autoPunctuate: true, showLabels: true, showConnectors: true },
   sentences: [],
   parsed: [],
@@ -212,27 +212,13 @@ function openPopoverForToken(idx) {
   const mobileSheet = window.matchMedia("(max-width: 980px)").matches;
 
   if (!mobileSheet) {
-    const sentenceRect = el.tokenLine.getBoundingClientRect();
-
-    el.wordPopover.classList.add("open", "is-measuring");
-    const panelW = Math.min(360, Math.max(300, el.wordPopover.offsetWidth || 340));
-    const panelH = Math.max(260, el.wordPopover.offsetHeight || 320);
-    el.wordPopover.classList.remove("open", "is-measuring");
-
+    const panelW = 320;
+    const panelH = 270;
     const centeredLeft = tokenRect.left - stageRect.left - panelW / 2 + tokenRect.width / 2;
-    const left = Math.min(stageRect.width - panelW - 10, Math.max(10, centeredLeft));
-
-    const sentenceTop = sentenceRect.top - stageRect.top;
-    const sentenceBottom = sentenceRect.bottom - stageRect.top;
-    const aboveTop = sentenceTop - panelH - 14;
-    const belowTop = sentenceBottom + 14;
-
-    const fitsBelowInsideStage = belowTop + panelH <= stageRect.height - 8;
-    const fitsAboveInsideStage = aboveTop >= 8;
-
-    // Never overlap the sentence: place fully below if possible, otherwise fully above.
-    const top = fitsBelowInsideStage ? belowTop : (fitsAboveInsideStage ? aboveTop : aboveTop);
-
+    const left = Math.min(stageRect.width - panelW - 8, Math.max(8, centeredLeft));
+    const topAbove = tokenRect.top - stageRect.top - panelH - 12;
+    const topBelow = tokenRect.bottom - stageRect.top + 16;
+    const top = topAbove >= 8 ? topAbove : Math.min(Math.max(8, topBelow), Math.max(8, stageRect.height - panelH - 8));
     el.wordPopover.style.left = `${left}px`;
     el.wordPopover.style.top = `${top}px`;
   } else {
