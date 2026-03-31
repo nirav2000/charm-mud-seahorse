@@ -1,5 +1,5 @@
 const state = {
-  version: "1.3.3",
+  version: "1.3.2",
   settings: { autoPunctuate: true, showLabels: true, showConnectors: true },
   sentences: [],
   parsed: [],
@@ -50,7 +50,6 @@ const el = {
   glossaryList: document.getElementById("glossary-list"),
   glossaryWrap: document.getElementById("glossary-wrap"),
   glossaryToggle: document.getElementById("glossary-toggle"),
-  practiceCard: document.querySelector(".practice-card"),
   tabButtons: () => document.querySelectorAll(".tab-btn"),
   tabPanels: () => document.querySelectorAll(".tab-panel"),
   dashboard: document.getElementById("dashboard"),
@@ -335,53 +334,22 @@ function setTab(name) {
 }
 
 function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5); }
-function removeFirst(arr, value) {
-  const i = arr.indexOf(value);
-  if (i > -1) arr.splice(i, 1);
-}
-
-function initPracticeState(parsed) {
-  state.practice = {
-    selectedWord: null,
-    rebuildTarget: [],
-    rebuildBank: shuffle(parsed.map((p) => p.word)),
-    sortBank: parsed.map((p) => ({ word: p.word, pos: p.pos })),
-    sortBins: { noun: [], verb: [], adjective: [], adverb: [], other: [] }
-  };
-}
-
-function renderRebuildTab() {
-  const target = state.practice.rebuildTarget.join(" ");
-  document.getElementById("tab-rebuild").innerHTML = `
-    <p>Tap words to move them into order (drag also works on desktop).</p>
-    <div id="rebuild-bank">${state.practice.rebuildBank.map((w)=>`<span class="draggable" draggable="true" data-practice="rebuild-bank" data-word="${w}">${w}</span>`).join("")}</div>
-    <div id="rebuild-zone" class="dropzone">${state.practice.rebuildTarget.map((w)=>`<span class="draggable" data-practice="placed-word" data-word="${w}">${w}</span>`).join("")}</div>
-    <div class="actions">
-      <button class="btn secondary" data-action="rebuild-check">Check</button>
-      <button class="btn ghost" data-action="rebuild-reset">Reset</button>
-    </div>
-    <div class="feedback" id="rebuild-feedback">${target ? "" : "Build the sentence in the correct order."}</div>
-  `;
-}
-
-function renderSortTab() {
-  const bins = ["noun","verb","adjective","adverb","other"];
-  document.getElementById("tab-sort").innerHTML = `
-    <p>Tap a word, then tap a grammar bin (drag also works on desktop).</p>
-    ${bins.map((b)=>`<div class="bin" data-bin="${b}"><strong>${b}</strong> ${state.practice.sortBins[b].map(w => `<span>${w}</span>`).join("")}</div>`).join("")}
-    <div id="sort-bank">${state.practice.sortBank.map((p)=>`<span class="draggable" draggable="true" data-practice="sort-bank" data-word="${p.word}" data-pos="${p.pos}">${p.word}</span>`).join("")}</div>
-    <div class="actions">
-      <button class="btn secondary" data-action="sort-check">Check</button>
-      <button class="btn ghost" data-action="sort-reset">Reset</button>
-    </div>
-    <div class="feedback" id="sort-feedback">Sort each word into the best bin.</div>
-  `;
-}
 
 function renderPractice(parsed) {
-  initPracticeState(parsed);
-  renderRebuildTab();
-  renderSortTab();
+  const words = parsed.map(p => p.word);
+
+  // Rebuild sentence
+  const shuffled = shuffle(words);
+  document.getElementById("tab-rebuild").innerHTML = `
+    <p>Drag words into the correct order.</p>
+    <div id="rebuild-bank">${shuffled.map((w,i)=>`<span class="draggable" draggable="true" data-word="${w}">${w}</span>`).join("")}</div>
+    <div id="rebuild-zone" class="dropzone"></div>
+    <div class="feedback" id="rebuild-feedback"></div>
+  `;
+
+  // Sort
+  const bins = ["noun","verb","adjective","adverb","other"];
+  document.getElementById("tab-sort").innerHTML = `<p>Drag each word into a grammar bin.</p>${bins.map(b=>`<div class="bin" data-bin="${b}"><strong>${b}</strong></div>`).join("")}<div id="sort-bank">${parsed.map(p=>`<span class="draggable" draggable="true" data-pos="${p.pos}" data-word="${p.word}">${p.word}</span>`).join("")}</div>`;
 
   // Fix mistake
   document.getElementById("tab-fix").innerHTML = `<p>Fix this sentence: <strong>She run very quick.</strong></p><button class="btn secondary" id="fix-answer">Show correction</button><div class="feedback" id="fix-feedback"></div>`;
@@ -391,6 +359,50 @@ function renderPractice(parsed) {
 
   // Compare
   document.getElementById("tab-compare").innerHTML = `<p>Choose the correct word: "She sings ____"</p><button class="btn secondary" data-choice="beautiful">beautiful</button> <button class="btn secondary" data-choice="beautifully">beautifully</button><div class="feedback" id="compare-feedback"></div>`;
+
+  wirePractice(words);
+}
+
+function wirePractice(words) {
+  // generic drag
+  document.querySelectorAll('.draggable').forEach(d => {
+    d.addEventListener('dragstart', e => e.dataTransfer.setData('text/plain', e.target.dataset.word));
+  });
+
+  const rebuildZone = document.getElementById('rebuild-zone');
+  if (rebuildZone) {
+    rebuildZone.addEventListener('dragover', e => e.preventDefault());
+    rebuildZone.addEventListener('drop', e => {
+      e.preventDefault();
+      const word = e.dataTransfer.getData('text/plain');
+      rebuildZone.innerHTML += `<span class="draggable">${word}</span> `;
+      const built = rebuildZone.textContent.trim().replace(/\s+/g,' ');
+      if (built === words.join(' ')) document.getElementById('rebuild-feedback').textContent = '✅ Great ordering!';
+    });
+  }
+
+  document.querySelectorAll('.bin').forEach(bin => {
+    bin.addEventListener('dragover', e => e.preventDefault());
+    bin.addEventListener('drop', e => {
+      e.preventDefault();
+      const word = e.dataTransfer.getData('text/plain');
+      bin.innerHTML += ` <span>${word}</span>`;
+    });
+  });
+
+  const fixBtn = document.getElementById('fix-answer');
+  if (fixBtn) fixBtn.onclick = () => document.getElementById('fix-feedback').textContent = '✅ Correct: "She runs very quickly."';
+
+  const phraseBtn = document.getElementById('phrase-answer');
+  if (phraseBtn) phraseBtn.onclick = () => document.getElementById('phrase-feedback').textContent = '✅ Noun phrase: "The small dog"';
+
+  document.querySelectorAll('#tab-compare [data-choice]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.getElementById('compare-feedback').textContent = btn.dataset.choice === 'beautifully' ? '✅ Yes! Adverb modifies sings.' : '❌ Try again. You need an adverb.';
+    });
+  });
+
+  enableTapDropFallback();
 }
 
 async function loadSampleSentence() {
@@ -453,7 +465,6 @@ async function init() {
   renderDashboard();
   loadVersionHistory();
   loadSampleSentence();
-  initPracticeInteractions();
 
   el.analyzeBtn.addEventListener('click', () => { renderAnalysis(el.input.value); renderPractice(state.parsed); });
   el.sampleBtn.addEventListener('click', loadSampleSentence);
@@ -492,112 +503,23 @@ async function init() {
   }, { passive: true });
 }
 
-function checkRebuild() {
-  const built = state.practice.rebuildTarget.join(" ");
-  const actual = state.parsed.map((p) => p.word).join(" ");
-  document.getElementById("rebuild-feedback").textContent = built === actual ? "✅ Great ordering!" : "Keep going — compare with the original sentence.";
-}
-
-function resetRebuild() {
-  state.practice.rebuildTarget = [];
-  state.practice.rebuildBank = shuffle(state.parsed.map((p) => p.word));
-  renderRebuildTab();
-}
-
-function checkSort() {
-  let correct = 0;
-  const total = state.parsed.length;
-  Object.entries(state.practice.sortBins).forEach(([bin, words]) => {
-    words.forEach((word) => {
-      const item = state.parsed.find((p) => p.word === word);
-      const expected = ["noun","verb","adjective","adverb"].includes(item?.pos) ? item.pos : "other";
-      if (bin === expected) correct += 1;
+// Mouse + touch fallback for practice modes:
+// touch users can tap a word chip to move it into a destination.
+function enableTapDropFallback() {
+  let selectedWord = null;
+  document.querySelectorAll(".draggable[data-word]").forEach((chip) => {
+    chip.addEventListener("click", () => {
+      selectedWord = chip.dataset.word;
+      document.querySelectorAll(".draggable[data-word]").forEach((c) => c.classList.toggle("active", c === chip));
     });
   });
-  document.getElementById("sort-feedback").textContent = `You placed ${correct}/${total} words in the best bin.`;
-}
-
-function resetSort() {
-  state.practice.sortBank = state.parsed.map((p) => ({ word: p.word, pos: p.pos }));
-  state.practice.sortBins = { noun: [], verb: [], adjective: [], adverb: [], other: [] };
-  state.practice.selectedWord = null;
-  renderSortTab();
-}
-
-function initPracticeInteractions() {
-  let dragPayload = null;
-  el.practiceCard.addEventListener("dragstart", (e) => {
-    const chip = e.target.closest(".draggable[data-word]");
-    if (!chip) return;
-    dragPayload = { word: chip.dataset.word, pos: chip.dataset.pos, source: chip.dataset.practice };
-    e.dataTransfer.setData("text/plain", chip.dataset.word);
-  });
-  el.practiceCard.addEventListener("dragover", (e) => {
-    if (e.target.closest(".bin, #rebuild-zone")) e.preventDefault();
-  });
-  el.practiceCard.addEventListener("drop", (e) => {
-    const targetBin = e.target.closest(".bin");
-    const rebuildZone = e.target.closest("#rebuild-zone");
-    if (!targetBin && !rebuildZone) return;
-    e.preventDefault();
-    if (!dragPayload) return;
-    if (rebuildZone && dragPayload.source === "rebuild-bank") {
-      removeFirst(state.practice.rebuildBank, dragPayload.word);
-      state.practice.rebuildTarget.push(dragPayload.word);
-      renderRebuildTab();
-    }
-    if (targetBin && dragPayload.source === "sort-bank") {
-      state.practice.sortBank = state.practice.sortBank.filter((p) => p.word !== dragPayload.word);
-      state.practice.sortBins[targetBin.dataset.bin].push(dragPayload.word);
-      renderSortTab();
-    }
-    dragPayload = null;
-  });
-
-  el.practiceCard.addEventListener("click", (e) => {
-    const chip = e.target.closest(".draggable[data-word]");
-    const bin = e.target.closest(".bin");
-    const action = e.target.closest("[data-action]")?.dataset.action;
-    const choice = e.target.closest("[data-choice]")?.dataset.choice;
-
-    if (action === "rebuild-check") return checkRebuild();
-    if (action === "rebuild-reset") return resetRebuild();
-    if (action === "sort-check") return checkSort();
-    if (action === "sort-reset") return resetSort();
-
-    if (e.target.id === "fix-answer") {
-      document.getElementById("fix-feedback").textContent = '✅ Correct: "She runs very quickly."';
-      return;
-    }
-    if (e.target.id === "phrase-answer") {
-      document.getElementById("phrase-feedback").textContent = '✅ Noun phrase: "The small dog"';
-      return;
-    }
-    if (choice) {
-      document.getElementById('compare-feedback').textContent = choice === 'beautifully' ? '✅ Yes! Adverb modifies sings.' : '❌ Try again. You need an adverb.';
-      return;
-    }
-
-    if (chip && chip.dataset.practice === "rebuild-bank") {
-      const idx = state.practice.rebuildBank.indexOf(chip.dataset.word);
-      if (idx > -1) {
-        state.practice.rebuildBank.splice(idx, 1);
-        state.practice.rebuildTarget.push(chip.dataset.word);
-        renderRebuildTab();
-      }
-      return;
-    }
-    if (chip && chip.dataset.practice === "sort-bank") {
-      state.practice.selectedWord = { word: chip.dataset.word, pos: chip.dataset.pos };
-      el.practiceCard.querySelectorAll(".draggable[data-practice='sort-bank']").forEach((n) => n.classList.toggle("active", n.dataset.word === chip.dataset.word));
-      return;
-    }
-    if (bin && state.practice.selectedWord) {
-      state.practice.sortBank = state.practice.sortBank.filter((p) => p.word !== state.practice.selectedWord.word);
-      state.practice.sortBins[bin.dataset.bin].push(state.practice.selectedWord.word);
-      state.practice.selectedWord = null;
-      renderSortTab();
-    }
+  document.querySelectorAll(".bin, #rebuild-zone").forEach((target) => {
+    target.addEventListener("click", () => {
+      if (!selectedWord) return;
+      target.innerHTML += ` <span>${selectedWord}</span>`;
+      selectedWord = null;
+      document.querySelectorAll(".draggable[data-word]").forEach((c) => c.classList.remove("active"));
+    });
   });
 }
 

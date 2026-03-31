@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 120" role="img" aria-label="Grammar Playground logo">
+  <defs>
+    <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4567ff"/>
+      <stop offset="1" stop-color="#32c8ff"/>
+    </linearGradient>
+    <linearGradient id="g2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff6aa8"/>
+      <stop offset="1" stop-color="#ffb86b"/>
+    </linearGradient>
+  </defs>
+  <rect width="560" height="120" rx="22" fill="#ffffff"/>
+  <circle cx="58" cy="60" r="32" fill="url(#g1)"/>
+  <path d="M42 60h32M58 44v32" stroke="#fff" stroke-width="7" stroke-linecap="round"/>
+  <text x="102" y="58" font-family="Nunito, Segoe UI, Arial" font-size="42" font-weight="800" fill="#203058">Grammar</text>
+  <text x="102" y="95" font-family="Nunito, Segoe UI, Arial" font-size="34" font-weight="700" fill="url(#g2)">Playground</text>
+</svg>

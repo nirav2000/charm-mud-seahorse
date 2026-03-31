@@ -1,5 +1,13 @@
 # Version History
 
+## 1.3.3 - 2026-03-31
+- Repair-first stability pass: refactored practice interactions to be state-driven with delegated listeners.
+- Fixed glossary collapse toggle consistency and kept it predictable across repeated analyses.
+- Improved popover/drawer guard behaviour to avoid stuck UI after repeated interactions.
+- Reworked practice tasks with explicit check/reset controls and reliable response feedback.
+- Shifted touch-first interactions away from native drag as the primary path (tap-select/tap-place), while keeping desktop drag support.
+- Archived `1.3.2` under `versions/1.3.2/`.
+
 ## 1.3.2 - 2026-03-31
 - Fixed Practice Studio drag/drop reliability and added clearer drag behavior wiring.
 - Removed fixed word-detail card from layout and kept contextual popover-only word guidance.
