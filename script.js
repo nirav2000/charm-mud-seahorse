@@ -38,7 +38,11 @@ const el = {
   sampleBtn: document.getElementById("sample-btn"),
   status: document.getElementById("status"),
   tokenLine: document.getElementById("token-line"),
+  analysisStage: document.getElementById("analysis-stage"),
   arrowLayer: document.getElementById("arrow-layer"),
+  wordPopover: document.getElementById("word-popover"),
+  popoverContent: document.getElementById("popover-content"),
+  popoverClose: document.getElementById("popover-close"),
   wordDetail: document.getElementById("word-detail"),
   glossaryList: document.getElementById("glossary-list"),
   wordInput: document.getElementById("word-input"),
@@ -114,20 +118,25 @@ function extraExample(pos) {
 }
 
 function renderWordDetail(item) {
+  const defaultMsg = "Tap or hover a word to see its learning card.";
   if (!item) {
-    el.wordDetail.innerHTML = "Tap or hover a word to see its learning card.";
-    return;
+    el.wordDetail.innerHTML = defaultMsg;
+    el.popoverContent.innerHTML = defaultMsg;
+    return defaultMsg;
   }
   const info = glossary[item.pos] || glossary.unknown;
-  el.wordDetail.innerHTML = `
+  const detailHTML = `
     <p><span class="k">Word:</span> ${item.word}</p>
-    <p><span class="k">Part of speech:</span> ${item.pos}</p>
+    <p><span class="k">Grammar type:</span> ${item.pos}</p>
     <p><span class="k">Simple definition:</span> ${info.def}</p>
     <p><span class="k">Job in this sentence:</span> ${roleInSentence(item, state.parsed)}</p>
     <p><span class="k">Phrase membership:</span> ${phraseMembership(item, state.parsed)}</p>
     <p><span class="k">Common confusion:</span> ${info.mistakes}</p>
     <p><span class="k">Another example:</span> ${extraExample(item.pos)}</p>
   `;
+  el.wordDetail.innerHTML = detailHTML;
+  el.popoverContent.innerHTML = detailHTML;
+  return detailHTML;
 }
 
 function renderGlossary() {
@@ -143,55 +152,102 @@ function renderGlossary() {
   `).join("");
 }
 
+// Sentence renderer: keep words reading as a natural sentence while still
+// giving each token its own label lane for worksheet-style analysis.
 function renderTokens(parsed) {
-  el.tokenLine.innerHTML = parsed.map((item) => `
-    <button class="token ${state.activeToken === item.index ? "active" : ""}" data-index="${item.index}">
-      <span class="word pos-${item.pos}">${item.word}</span>
-      <span class="label">${item.pos}</span>
-    </button>
-  `).join("");
+  el.tokenLine.innerHTML = parsed.map((item) => {
+    const isPunctLight = /[,:;]$/.test(item.word);
+    return `
+      <span class="token ${state.activeToken === item.index ? "active" : ""} ${isPunctLight ? "punct-light" : ""}" data-index="${item.index}" tabindex="0" role="button" aria-label="Open details for ${item.word}">
+        <span class="word pos-${item.pos}">${item.word}</span>
+        <span class="label">${item.pos}</span>
+      </span>
+    `;
+  }).join("");
 }
 
+// Connector system: draw soft worksheet-style curves behind text/labels.
 function renderConnectors(parsed) {
   el.arrowLayer.innerHTML = "";
   if (!state.settings.showConnectors) return;
 
-  const rect = el.arrowLayer.getBoundingClientRect();
+  const stageRect = el.analysisStage.getBoundingClientRect();
   const nodes = [...el.tokenLine.querySelectorAll(".token")];
-  parsed.forEach((item, i) => {
+  parsed.forEach((_, i) => {
     const n = nodes[i];
+    if (!n) return;
     const wordRect = n.querySelector(".word").getBoundingClientRect();
     const labelRect = n.querySelector(".label").getBoundingClientRect();
-    const sx = wordRect.left - rect.left + wordRect.width / 2;
-    const sy = wordRect.bottom - rect.top;
-    const ex = labelRect.left - rect.left + labelRect.width / 2;
-    const ey = labelRect.top - rect.top;
+    const sx = wordRect.left - stageRect.left + wordRect.width / 2;
+    const sy = wordRect.bottom - stageRect.top + 1;
+    const ex = labelRect.left - stageRect.left + labelRect.width / 2;
+    const ey = labelRect.top - stageRect.top - 1;
+    const bendY = Math.min(ey - 3, sy + 10);
 
     const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    path.setAttribute("d", `M ${sx} ${sy} Q ${(sx + ex) / 2} ${sy + 8} ${ex} ${ey}`);
+    path.setAttribute("d", `M ${sx} ${sy} C ${sx - 4} ${bendY}, ${ex + 4} ${bendY}, ${ex} ${ey}`);
     path.setAttribute("fill", "none");
-    path.setAttribute("stroke", "#9aa8c8");
-    path.setAttribute("stroke-width", "1.3");
+    path.setAttribute("stroke", "#a7b5d9");
+    path.setAttribute("stroke-width", "1.15");
+    path.setAttribute("stroke-linecap", "round");
     path.setAttribute("class", "connector");
     el.arrowLayer.appendChild(path);
   });
 }
 
+function closePopover() {
+  el.wordPopover.classList.remove("open");
+  el.wordPopover.setAttribute("aria-hidden", "true");
+}
+
+// Word detail component: open near token on desktop, bottom-sheet style on touch layouts.
+function openPopoverForToken(idx) {
+  const token = el.tokenLine.querySelector(`.token[data-index="${idx}"]`);
+  if (!token) return;
+  const tokenRect = token.getBoundingClientRect();
+  const stageRect = el.analysisStage.getBoundingClientRect();
+  const mobileSheet = window.matchMedia("(max-width: 980px)").matches;
+
+  if (!mobileSheet) {
+    const panelW = 320;
+    const left = Math.min(stageRect.width - panelW - 8, Math.max(8, tokenRect.left - stageRect.left - panelW / 2 + tokenRect.width / 2));
+    const top = Math.max(8, tokenRect.bottom - stageRect.top + 14);
+    el.wordPopover.style.left = `${left}px`;
+    el.wordPopover.style.top = `${top}px`;
+  } else {
+    el.wordPopover.style.left = "";
+    el.wordPopover.style.top = "";
+  }
+
+  el.wordPopover.classList.add("open");
+  el.wordPopover.setAttribute("aria-hidden", "false");
+}
+
 function wireTokenEvents() {
   el.tokenLine.querySelectorAll(".token").forEach((token) => {
     const idx = Number(token.dataset.index);
+    const setPreview = (on) => token.classList.toggle("preview", on && idx !== state.activeToken);
     const activate = () => {
       state.activeToken = idx;
       renderTokens(state.parsed);
       requestAnimationFrame(() => renderConnectors(state.parsed));
       renderWordDetail(state.parsed[idx]);
+      openPopoverForToken(idx);
       trackInteraction(state.parsed[idx].pos);
+      wireTokenEvents();
     };
 
     token.addEventListener("mouseenter", () => {
-      if (window.matchMedia("(hover: hover)").matches) activate();
+      if (window.matchMedia("(hover: hover)").matches) setPreview(true);
     });
+    token.addEventListener("mouseleave", () => setPreview(false));
     token.addEventListener("click", activate);
+    token.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        activate();
+      }
+    });
   });
 }
 
@@ -201,6 +257,7 @@ function renderAnalysis(rawText) {
     state.parsed = [];
     el.tokenLine.innerHTML = "";
     el.arrowLayer.innerHTML = "";
+    closePopover();
     renderWordDetail(null);
     return;
   }
@@ -212,6 +269,7 @@ function renderAnalysis(rawText) {
     wireTokenEvents();
   });
   renderWordDetail(null);
+  closePopover();
 }
 
 function checkWord(word) {
@@ -359,32 +417,29 @@ async function loadVersionHistory() {
 }
 
 function init() {
+  el.historyBtn.textContent = `v${state.version}`;
   renderGlossary();
   renderDashboard();
-  renderSettingsButtons();
   loadVersionHistory();
   loadSampleSentence();
 
   el.analyzeBtn.addEventListener('click', () => { renderAnalysis(el.input.value); renderPractice(state.parsed); });
   el.sampleBtn.addEventListener('click', loadSampleSentence);
   el.input.addEventListener('input', () => { renderAnalysis(el.input.value); renderPractice(state.parsed); });
-  el.wordInput.addEventListener('input', (e) => checkWord(e.target.value));
 
   el.tabButtons().forEach(btn => btn.addEventListener('click', () => setTab(btn.dataset.tab)));
-
-  document.querySelectorAll('.toggle-btn[data-setting]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const key = btn.dataset.setting;
-      state.settings[key] = !state.settings[key];
-      renderSettingsButtons();
-      renderAnalysis(el.input.value);
-    });
-  });
-
-  document.getElementById('settings-btn').addEventListener('click', () => toggleDrawer(document.getElementById('settings-drawer'), true));
-  document.getElementById('settings-close').addEventListener('click', () => toggleDrawer(document.getElementById('settings-drawer'), false));
   document.getElementById('history-btn').addEventListener('click', () => toggleDrawer(el.historyDrawer, true));
   document.getElementById('history-close').addEventListener('click', () => toggleDrawer(el.historyDrawer, false));
+  el.popoverClose.addEventListener("click", closePopover);
+  document.addEventListener("click", (e) => {
+    if (!el.wordPopover.classList.contains("open")) return;
+    const inPopover = el.wordPopover.contains(e.target);
+    const inToken = e.target.closest(".token");
+    if (!inPopover && !inToken) closePopover();
+  });
+  window.addEventListener("resize", () => {
+    if (state.activeToken !== null && el.wordPopover.classList.contains("open")) openPopoverForToken(state.activeToken);
+  });
 }
 
 init();
