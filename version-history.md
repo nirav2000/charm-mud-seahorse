@@ -1,5 +1,12 @@
 # Version History
 
+## 1.3.1 - 2026-03-31
+- Polished worksheet interactions for production-readiness: robust popover open/close state, Escape handling, and outside-click/tap dismissal.
+- Improved sentence analysis spacing, focus styles, and touch/keyboard interaction consistency for desktop + iPad layouts.
+- Upgraded changelog drawer behaviour with cleaner close interactions and improved timeline scan readability.
+- Synced visible UI badge version with `VERSION` source file at runtime.
+- Archived `1.3.0` under `versions/1.3.0/`.
+
 ## 1.3.0 - 2026-03-31
 - Reimagined Grammar Playground as a playful worksheet-style learning experience with natural colorful sentence analysis.
 - Added richer child-friendly word detail card with role, phrase membership, confusion notes, and extra examples.

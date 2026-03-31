@@ -1,5 +1,5 @@
 const state = {
-  version: "1.3.1",
+  version: "1.3.0",
   settings: { autoPunctuate: true, showLabels: true, showConnectors: true },
   sentences: [],
   parsed: [],
@@ -8,10 +8,6 @@ const state = {
     total: 0,
     byType: {},
     confusions: { "adjective vs adverb": 0, "determiner vs adjective": 0 }
-  },
-  ui: {
-    popoverOpen: false,
-    historyOpen: false
   }
 };
 
@@ -42,13 +38,12 @@ const el = {
   sampleBtn: document.getElementById("sample-btn"),
   status: document.getElementById("status"),
   tokenLine: document.getElementById("token-line"),
-  analysisStage: document.getElementById("analysis-stage"),
   arrowLayer: document.getElementById("arrow-layer"),
-  wordPopover: document.getElementById("word-popover"),
-  popoverContent: document.getElementById("popover-content"),
-  popoverClose: document.getElementById("popover-close"),
   wordDetail: document.getElementById("word-detail"),
   glossaryList: document.getElementById("glossary-list"),
+  wordInput: document.getElementById("word-input"),
+  grammarType: document.getElementById("grammar-type"),
+  grammarExplanation: document.getElementById("grammar-explanation"),
   tabButtons: () => document.querySelectorAll(".tab-btn"),
   tabPanels: () => document.querySelectorAll(".tab-panel"),
   dashboard: document.getElementById("dashboard"),
@@ -119,25 +114,20 @@ function extraExample(pos) {
 }
 
 function renderWordDetail(item) {
-  const defaultMsg = "Tap or hover a word to see its learning card.";
   if (!item) {
-    el.wordDetail.innerHTML = defaultMsg;
-    el.popoverContent.innerHTML = defaultMsg;
-    return defaultMsg;
+    el.wordDetail.innerHTML = "Tap or hover a word to see its learning card.";
+    return;
   }
   const info = glossary[item.pos] || glossary.unknown;
-  const detailHTML = `
+  el.wordDetail.innerHTML = `
     <p><span class="k">Word:</span> ${item.word}</p>
-    <p><span class="k">Grammar type:</span> ${item.pos}</p>
+    <p><span class="k">Part of speech:</span> ${item.pos}</p>
     <p><span class="k">Simple definition:</span> ${info.def}</p>
     <p><span class="k">Job in this sentence:</span> ${roleInSentence(item, state.parsed)}</p>
     <p><span class="k">Phrase membership:</span> ${phraseMembership(item, state.parsed)}</p>
     <p><span class="k">Common confusion:</span> ${info.mistakes}</p>
     <p><span class="k">Another example:</span> ${extraExample(item.pos)}</p>
   `;
-  el.wordDetail.innerHTML = detailHTML;
-  el.popoverContent.innerHTML = detailHTML;
-  return detailHTML;
 }
 
 function renderGlossary() {
@@ -153,106 +143,55 @@ function renderGlossary() {
   `).join("");
 }
 
-// Sentence renderer: keep words reading as a natural sentence while still
-// giving each token its own label lane for worksheet-style analysis.
 function renderTokens(parsed) {
-  el.tokenLine.innerHTML = parsed.map((item) => {
-    const isPunctLight = /[,:;]$/.test(item.word);
-    return `
-      <span class="token ${state.activeToken === item.index ? "active" : ""} ${isPunctLight ? "punct-light" : ""}" data-index="${item.index}" tabindex="0" role="button" aria-label="Open details for ${item.word}">
-        <span class="word pos-${item.pos}">${item.word}</span>
-        <span class="label">${item.pos}</span>
-      </span>
-    `;
-  }).join("");
+  el.tokenLine.innerHTML = parsed.map((item) => `
+    <button class="token ${state.activeToken === item.index ? "active" : ""}" data-index="${item.index}">
+      <span class="word pos-${item.pos}">${item.word}</span>
+      <span class="label">${item.pos}</span>
+    </button>
+  `).join("");
 }
 
-// Connector system: draw soft worksheet-style curves behind text/labels.
 function renderConnectors(parsed) {
   el.arrowLayer.innerHTML = "";
   if (!state.settings.showConnectors) return;
 
-  const stageRect = el.analysisStage.getBoundingClientRect();
+  const rect = el.arrowLayer.getBoundingClientRect();
   const nodes = [...el.tokenLine.querySelectorAll(".token")];
-  parsed.forEach((_, i) => {
+  parsed.forEach((item, i) => {
     const n = nodes[i];
-    if (!n) return;
     const wordRect = n.querySelector(".word").getBoundingClientRect();
     const labelRect = n.querySelector(".label").getBoundingClientRect();
-    const sx = wordRect.left - stageRect.left + wordRect.width / 2;
-    const sy = wordRect.bottom - stageRect.top + 1;
-    const ex = labelRect.left - stageRect.left + labelRect.width / 2;
-    const ey = labelRect.top - stageRect.top - 1;
-    const bendY = Math.min(ey - 3, sy + 10);
+    const sx = wordRect.left - rect.left + wordRect.width / 2;
+    const sy = wordRect.bottom - rect.top;
+    const ex = labelRect.left - rect.left + labelRect.width / 2;
+    const ey = labelRect.top - rect.top;
 
     const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    path.setAttribute("d", `M ${sx} ${sy} C ${sx - 4} ${bendY}, ${ex + 4} ${bendY}, ${ex} ${ey}`);
+    path.setAttribute("d", `M ${sx} ${sy} Q ${(sx + ex) / 2} ${sy + 8} ${ex} ${ey}`);
     path.setAttribute("fill", "none");
-    path.setAttribute("stroke", "#a7b5d9");
-    path.setAttribute("stroke-width", "1.15");
-    path.setAttribute("stroke-linecap", "round");
+    path.setAttribute("stroke", "#9aa8c8");
+    path.setAttribute("stroke-width", "1.3");
     path.setAttribute("class", "connector");
     el.arrowLayer.appendChild(path);
   });
 }
 
-function closePopover() {
-  state.ui.popoverOpen = false;
-  el.wordPopover.classList.remove("open");
-  el.wordPopover.setAttribute("aria-hidden", "true");
-}
-
-// Word detail component: open near token on desktop, bottom-sheet style on touch layouts.
-function openPopoverForToken(idx) {
-  const token = el.tokenLine.querySelector(`.token[data-index="${idx}"]`);
-  if (!token) return;
-  const tokenRect = token.getBoundingClientRect();
-  const stageRect = el.analysisStage.getBoundingClientRect();
-  const mobileSheet = window.matchMedia("(max-width: 980px)").matches;
-
-  if (!mobileSheet) {
-    const panelW = 320;
-    const panelH = 270;
-    const left = Math.min(stageRect.width - panelW - 8, Math.max(8, tokenRect.left - stageRect.left - panelW / 2 + tokenRect.width / 2));
-    const preferredTop = tokenRect.bottom - stageRect.top + 14;
-    const top = Math.min(Math.max(8, preferredTop), Math.max(8, stageRect.height - panelH - 8));
-    el.wordPopover.style.left = `${left}px`;
-    el.wordPopover.style.top = `${top}px`;
-  } else {
-    el.wordPopover.style.left = "";
-    el.wordPopover.style.top = "";
-  }
-
-  el.wordPopover.classList.add("open");
-  el.wordPopover.setAttribute("aria-hidden", "false");
-  state.ui.popoverOpen = true;
-}
-
 function wireTokenEvents() {
   el.tokenLine.querySelectorAll(".token").forEach((token) => {
     const idx = Number(token.dataset.index);
-    const setPreview = (on) => token.classList.toggle("preview", on && idx !== state.activeToken);
     const activate = () => {
       state.activeToken = idx;
       renderTokens(state.parsed);
       requestAnimationFrame(() => renderConnectors(state.parsed));
       renderWordDetail(state.parsed[idx]);
-      openPopoverForToken(idx);
       trackInteraction(state.parsed[idx].pos);
-      wireTokenEvents();
     };
 
     token.addEventListener("mouseenter", () => {
-      if (window.matchMedia("(hover: hover)").matches) setPreview(true);
+      if (window.matchMedia("(hover: hover)").matches) activate();
     });
-    token.addEventListener("mouseleave", () => setPreview(false));
     token.addEventListener("click", activate);
-    token.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        activate();
-      }
-    });
   });
 }
 
@@ -262,7 +201,6 @@ function renderAnalysis(rawText) {
     state.parsed = [];
     el.tokenLine.innerHTML = "";
     el.arrowLayer.innerHTML = "";
-    closePopover();
     renderWordDetail(null);
     return;
   }
@@ -274,7 +212,18 @@ function renderAnalysis(rawText) {
     wireTokenEvents();
   });
   renderWordDetail(null);
-  closePopover();
+}
+
+function checkWord(word) {
+  const n = normalize(word);
+  if (!n) {
+    el.grammarType.textContent = "—";
+    el.grammarExplanation.textContent = "Type a word to get help.";
+    return;
+  }
+  const pos = classify(n, nlp(n));
+  el.grammarType.textContent = pos;
+  el.grammarExplanation.textContent = glossary[pos]?.def || glossary.unknown.def;
 }
 
 function trackInteraction(pos) {
@@ -371,8 +320,6 @@ function wirePractice(words) {
       document.getElementById('compare-feedback').textContent = btn.dataset.choice === 'beautifully' ? '✅ Yes! Adverb modifies sings.' : '❌ Try again. You need an adverb.';
     });
   });
-
-  enableTapDropFallback();
 }
 
 async function loadSampleSentence() {
@@ -388,16 +335,15 @@ async function loadSampleSentence() {
   el.status.textContent = 'Sample loaded.';
 }
 
-function openHistoryDrawer() {
-  state.ui.historyOpen = true;
-  el.historyDrawer.classList.add("open");
-  el.historyDrawer.setAttribute("aria-hidden", "false");
+function toggleDrawer(drawer, open) {
+  drawer.classList.toggle('open', open);
+  drawer.setAttribute('aria-hidden', open ? 'false' : 'true');
 }
 
-function closeHistoryDrawer() {
-  state.ui.historyOpen = false;
-  el.historyDrawer.classList.remove("open");
-  el.historyDrawer.setAttribute("aria-hidden", "true");
+function renderSettingsButtons() {
+  document.querySelectorAll('.toggle-btn[data-setting]').forEach(btn => {
+    btn.classList.toggle('is-on', !!state.settings[btn.dataset.setting]);
+  });
 }
 
 async function loadVersionHistory() {
@@ -412,80 +358,33 @@ async function loadVersionHistory() {
   }).join('');
 }
 
-async function syncVersionFromSource() {
-  try {
-    const res = await fetch("VERSION");
-    if (!res.ok) return;
-    const version = (await res.text()).trim();
-    if (/^\d+\.\d+\.\d+$/.test(version)) state.version = version;
-  } catch (_) {
-    // Keep bundled fallback if VERSION cannot be fetched.
-  }
-}
-
-async function init() {
-  await syncVersionFromSource();
-  el.historyBtn.textContent = `v${state.version}`;
+function init() {
   renderGlossary();
   renderDashboard();
+  renderSettingsButtons();
   loadVersionHistory();
   loadSampleSentence();
 
   el.analyzeBtn.addEventListener('click', () => { renderAnalysis(el.input.value); renderPractice(state.parsed); });
   el.sampleBtn.addEventListener('click', loadSampleSentence);
   el.input.addEventListener('input', () => { renderAnalysis(el.input.value); renderPractice(state.parsed); });
+  el.wordInput.addEventListener('input', (e) => checkWord(e.target.value));
 
   el.tabButtons().forEach(btn => btn.addEventListener('click', () => setTab(btn.dataset.tab)));
-  document.getElementById('history-btn').addEventListener('click', () => {
-    closePopover();
-    openHistoryDrawer();
-  });
-  document.getElementById('history-close').addEventListener('click', closeHistoryDrawer);
-  el.popoverClose.addEventListener("click", closePopover);
-  document.addEventListener("click", (e) => {
-    if (state.ui.popoverOpen) {
-      const inPopover = el.wordPopover.contains(e.target);
-      const inToken = e.target.closest(".token");
-      if (!inPopover && !inToken) closePopover();
-    }
-    if (state.ui.historyOpen) {
-      const inDrawer = el.historyDrawer.contains(e.target);
-      const trigger = e.target.closest("#history-btn");
-      if (!inDrawer && !trigger) closeHistoryDrawer();
-    }
-  });
-  document.addEventListener("keydown", (e) => {
-    if (e.key !== "Escape") return;
-    if (state.ui.popoverOpen) closePopover();
-    if (state.ui.historyOpen) closeHistoryDrawer();
-  });
-  window.addEventListener("resize", () => {
-    if (state.activeToken !== null && state.ui.popoverOpen) openPopoverForToken(state.activeToken);
-    if (window.matchMedia("(max-width: 980px)").matches && state.ui.historyOpen) closeHistoryDrawer();
-  });
-  window.addEventListener("scroll", () => {
-    if (state.ui.popoverOpen && !window.matchMedia("(max-width: 980px)").matches) openPopoverForToken(state.activeToken);
-  }, { passive: true });
-}
 
-// Mouse + touch fallback for practice modes:
-// touch users can tap a word chip to move it into a destination.
-function enableTapDropFallback() {
-  let selectedWord = null;
-  document.querySelectorAll(".draggable[data-word]").forEach((chip) => {
-    chip.addEventListener("click", () => {
-      selectedWord = chip.dataset.word;
-      document.querySelectorAll(".draggable[data-word]").forEach((c) => c.classList.toggle("active", c === chip));
+  document.querySelectorAll('.toggle-btn[data-setting]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const key = btn.dataset.setting;
+      state.settings[key] = !state.settings[key];
+      renderSettingsButtons();
+      renderAnalysis(el.input.value);
     });
   });
-  document.querySelectorAll(".bin, #rebuild-zone").forEach((target) => {
-    target.addEventListener("click", () => {
-      if (!selectedWord) return;
-      target.innerHTML += ` <span>${selectedWord}</span>`;
-      selectedWord = null;
-      document.querySelectorAll(".draggable[data-word]").forEach((c) => c.classList.remove("active"));
-    });
-  });
+
+  document.getElementById('settings-btn').addEventListener('click', () => toggleDrawer(document.getElementById('settings-drawer'), true));
+  document.getElementById('settings-close').addEventListener('click', () => toggleDrawer(document.getElementById('settings-drawer'), false));
+  document.getElementById('history-btn').addEventListener('click', () => toggleDrawer(el.historyDrawer, true));
+  document.getElementById('history-close').addEventListener('click', () => toggleDrawer(el.historyDrawer, false));
 }
 
 init();
