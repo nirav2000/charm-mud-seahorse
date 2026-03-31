@@ -1,15 +1,28 @@
-const POS_INFO = {
-  article: "Introduces a noun and signals specificity.",
-  noun: "Names a person, place, thing, or idea.",
-  pronoun: "Replaces a noun phrase.",
-  verb: "Expresses action or state.",
-  adjective: "Describes a noun/pronoun.",
-  adverb: "Modifies a verb, adjective, or adverb.",
-  determiner: "Specifies reference of a noun.",
-  preposition: "Shows relationship in time/space.",
-  conjunction: "Connects words or clauses.",
-  interjection: "Expresses sudden emotion.",
-  unknown: "Could not confidently classify in this context."
+const state = {
+  version: "1.3.0",
+  settings: { autoPunctuate: true, showLabels: true, showConnectors: true },
+  sentences: [],
+  parsed: [],
+  activeToken: null,
+  progress: {
+    total: 0,
+    byType: {},
+    confusions: { "adjective vs adverb": 0, "determiner vs adjective": 0 }
+  }
+};
+
+const glossary = {
+  noun: { def: "A naming word.", does: "Names people, places, things, or ideas.", spot: "Can often follow an article like ‘the’.", mistakes: "Mixing nouns with verbs.", links: "pronoun, adjective" },
+  verb: { def: "An action or state word.", does: "Tells what happens.", spot: "Can change tense (play/played).", mistakes: "Missing helping verbs.", links: "adverb" },
+  adjective: { def: "A describing word.", does: "Describes a noun.", spot: "Often before a noun.", mistakes: "Using adjective when adverb is needed.", links: "noun, adverb" },
+  adverb: { def: "A how/when/where word.", does: "Adds detail to verbs/adjectives.", spot: "Often ends in -ly (not always).", mistakes: "Confusing with adjectives.", links: "verb, adjective" },
+  pronoun: { def: "A noun replacer.", does: "Replaces a noun phrase.", spot: "Words like he, she, they.", mistakes: "Unclear reference.", links: "noun" },
+  article: { def: "A noun starter.", does: "Introduces a noun.", spot: "a, an, the.", mistakes: "Using ‘a’ before vowel sounds.", links: "noun, determiner" },
+  determiner: { def: "A pointer word.", does: "Shows which noun.", spot: "this, that, my, those.", mistakes: "Treating all as adjectives.", links: "article, adjective" },
+  preposition: { def: "A position/link word.", does: "Shows relation in place/time.", spot: "in, on, under, between.", mistakes: "Dropping needed prepositions.", links: "noun" },
+  conjunction: { def: "A joining word.", does: "Connects words or clauses.", spot: "and, but, or.", mistakes: "Comma misuse with conjunctions.", links: "verb" },
+  interjection: { def: "An emotion word.", does: "Shows feeling suddenly.", spot: "wow!, oops!", mistakes: "Using in formal writing too often.", links: "punctuation" },
+  unknown: { def: "Needs more context.", does: "Could belong to multiple classes.", spot: "Ambiguous in this sentence.", mistakes: "Assuming one fixed type.", links: "all" }
 };
 
 const manualRules = {
@@ -19,74 +32,28 @@ const manualRules = {
   interjections: ["wow","oops","hey","ouch","bravo","alas"]
 };
 
-const state = {
-  version: "1.2.1",
-  settings: { autoPunctuate: true, showLabels: true, showConnectors: true },
-  sentences: [],
-  activeIndex: null,
-  parsed: []
-};
-
 const el = {
   input: document.getElementById("sentence-input"),
   analyzeBtn: document.getElementById("analyze-btn"),
   sampleBtn: document.getElementById("sample-btn"),
   status: document.getElementById("status"),
-  tokenLayer: document.getElementById("token-layer"),
-  connectorLayer: document.getElementById("connector-layer"),
+  tokenLine: document.getElementById("token-line"),
+  arrowLayer: document.getElementById("arrow-layer"),
+  wordDetail: document.getElementById("word-detail"),
+  glossaryList: document.getElementById("glossary-list"),
   wordInput: document.getElementById("word-input"),
   grammarType: document.getElementById("grammar-type"),
   grammarExplanation: document.getElementById("grammar-explanation"),
-  popover: document.getElementById("word-popover"),
-  settingsBtn: document.getElementById("settings-btn"),
-  settingsDrawer: document.getElementById("settings-drawer"),
-  settingsClose: document.getElementById("settings-close"),
-  settingButtons: () => document.querySelectorAll(".toggle-btn[data-setting]"),
+  tabButtons: () => document.querySelectorAll(".tab-btn"),
+  tabPanels: () => document.querySelectorAll(".tab-panel"),
+  dashboard: document.getElementById("dashboard"),
   historyBtn: document.getElementById("history-btn"),
   historyDrawer: document.getElementById("history-drawer"),
   historyClose: document.getElementById("history-close"),
   timeline: document.getElementById("version-timeline")
 };
 
-const normalizeWord = (word) => word.toLowerCase().replace(/^[^a-z']+|[^a-z']+$/g, "");
-
-function roleForPos(pos) {
-  const roleMap = {
-    article: "signals noun reference", noun: "main content word", pronoun: "noun substitute", verb: "action/state core",
-    adjective: "describes noun", adverb: "modifies action/quality", determiner: "limits noun reference",
-    preposition: "links phrase relation", conjunction: "joins units", interjection: "expressive insertion", unknown: "context-sensitive"
-  };
-  return roleMap[pos] || "contextual role";
-}
-
-function phraseMembership(index, items) {
-  const prev = items[index - 1]?.pos;
-  const next = items[index + 1]?.pos;
-  if ((prev === "article" || prev === "determiner") && (items[index].pos === "adjective" || items[index].pos === "noun")) return "likely noun phrase";
-  if (items[index].pos === "preposition") return "prepositional phrase starter";
-  if (items[index].pos === "verb" && (next === "noun" || next === "pronoun")) return "verb phrase core";
-  return "standalone or mixed phrase";
-}
-
-function altUse(pos) {
-  const map = {
-    noun: "Many nouns can act as adjectives in compounds.",
-    verb: "Some verbs can also be nouns (e.g., run).",
-    adjective: "Some adjectives may be used as nouns in fixed expressions.",
-    adverb: "Adverbs can also function as discourse markers.",
-    unknown: "This token may change class in another sentence."
-  };
-  return map[pos] || "Can vary by context.";
-}
-
-function exampleForPos(pos) {
-  const e = {
-    article: "The apple fell.", noun: "Music matters.", pronoun: "They arrived.", verb: "Birds fly.", adjective: "Bright light.",
-    adverb: "She spoke softly.", determiner: "Those books.", preposition: "Under the bridge.", conjunction: "Tea and coffee.",
-    interjection: "Oops! I dropped it.", unknown: "Meaning depends on context."
-  };
-  return e[pos] || "Example depends on context.";
-}
+const normalize = (w) => w.toLowerCase().replace(/^[^a-z']+|[^a-z']+$/g, "");
 
 function autoPunctuate(text) {
   let t = text.trim().replace(/\s+/g, " ");
@@ -97,8 +64,8 @@ function autoPunctuate(text) {
   return t;
 }
 
-function classifyWord(word, doc) {
-  const n = normalizeWord(word);
+function classify(word, doc) {
+  const n = normalize(word);
   if (!n) return "unknown";
   if (doc.match(n).has("#Pronoun")) return "pronoun";
   if (doc.match(n).has("#Verb")) return "verb";
@@ -116,178 +83,297 @@ function classifyWord(word, doc) {
 function parseSentence(sentence) {
   const words = sentence.match(/\S+/g) || [];
   const doc = nlp(sentence);
-  return words.map((word, idx) => ({ idx, word, pos: classifyWord(word, doc) }));
+  return words.map((word, i) => ({ index: i, word, pos: classify(word, doc) }));
 }
 
-function renderTokens(items) {
-  el.tokenLayer.innerHTML = items.map((item) => `
-    <button class="token ${state.activeIndex === item.idx ? "is-active" : ""}" data-index="${item.idx}">
-      <span class="token-word pos-${item.pos}">${item.word}</span>
-      <span class="token-sub">${state.settings.showLabels ? item.pos : ""}</span>
+function roleInSentence(item, items) {
+  const prev = items[item.index - 1]?.pos;
+  if (item.pos === "verb") return "This is the action word in this sentence.";
+  if (item.pos === "noun" && (prev === "article" || prev === "determiner")) return "This is likely the head noun in a noun phrase.";
+  if (item.pos === "adjective") return "This describes the noun nearby.";
+  if (item.pos === "adverb") return "This adds extra detail to an action or description.";
+  return `This works as a ${item.pos} in this sentence.`;
+}
+
+function phraseMembership(item, items) {
+  const prev = items[item.index - 1]?.pos;
+  const next = items[item.index + 1]?.pos;
+  if ((prev === "article" || prev === "determiner") && (item.pos === "adjective" || item.pos === "noun")) return "Likely part of a noun phrase.";
+  if (item.pos === "preposition") return "Starts a prepositional phrase.";
+  if (item.pos === "verb" && (next === "noun" || next === "pronoun")) return "Part of a verb phrase.";
+  return "Standalone or mixed phrase context.";
+}
+
+function extraExample(pos) {
+  const map = {
+    noun: "The puppy chased the ball.", verb: "They laughed loudly.", adjective: "A bright kite flew.", adverb: "He answered quickly.",
+    pronoun: "She waved politely.", article: "The moon is bright.", determiner: "Those apples are ripe.", preposition: "The book is on the desk.",
+    conjunction: "I tried, but I slipped.", interjection: "Oops! I forgot.", unknown: "Meaning changes by context."
+  };
+  return map[pos] || "Try another sentence for more context.";
+}
+
+function renderWordDetail(item) {
+  if (!item) {
+    el.wordDetail.innerHTML = "Tap or hover a word to see its learning card.";
+    return;
+  }
+  const info = glossary[item.pos] || glossary.unknown;
+  el.wordDetail.innerHTML = `
+    <p><span class="k">Word:</span> ${item.word}</p>
+    <p><span class="k">Part of speech:</span> ${item.pos}</p>
+    <p><span class="k">Simple definition:</span> ${info.def}</p>
+    <p><span class="k">Job in this sentence:</span> ${roleInSentence(item, state.parsed)}</p>
+    <p><span class="k">Phrase membership:</span> ${phraseMembership(item, state.parsed)}</p>
+    <p><span class="k">Common confusion:</span> ${info.mistakes}</p>
+    <p><span class="k">Another example:</span> ${extraExample(item.pos)}</p>
+  `;
+}
+
+function renderGlossary() {
+  el.glossaryList.innerHTML = Object.entries(glossary).map(([term, g]) => `
+    <div class="gloss-item">
+      <h4>${term}</h4>
+      <p><strong>Simple definition:</strong> ${g.def}</p>
+      <p><strong>What it does:</strong> ${g.does}</p>
+      <p><strong>How to spot it:</strong> ${g.spot}</p>
+      <p><strong>Common mistakes:</strong> ${g.mistakes}</p>
+      <p><strong>Linked terms:</strong> ${g.links}</p>
+    </div>
+  `).join("");
+}
+
+function renderTokens(parsed) {
+  el.tokenLine.innerHTML = parsed.map((item) => `
+    <button class="token ${state.activeToken === item.index ? "active" : ""}" data-index="${item.index}">
+      <span class="word pos-${item.pos}">${item.word}</span>
+      <span class="label">${item.pos}</span>
     </button>
   `).join("");
 }
 
-function renderConnectors(items) {
-  el.connectorLayer.innerHTML = "";
+function renderConnectors(parsed) {
+  el.arrowLayer.innerHTML = "";
   if (!state.settings.showConnectors) return;
-  const hostRect = el.connectorLayer.getBoundingClientRect();
-  const tokenNodes = [...el.tokenLayer.querySelectorAll(".token")];
 
-  items.forEach((item, i) => {
-    const node = tokenNodes[i];
-    const wordNode = node.querySelector(".token-word").getBoundingClientRect();
-    const labelNode = node.querySelector(".token-sub").getBoundingClientRect();
-    const sx = wordNode.left - hostRect.left + wordNode.width / 2;
-    const sy = wordNode.bottom - hostRect.top;
-    const ex = labelNode.left - hostRect.left + labelNode.width / 2;
-    const ey = labelNode.top - hostRect.top;
-    const cx = (sx + ex) / 2;
-    const cy = sy + 8;
+  const rect = el.arrowLayer.getBoundingClientRect();
+  const nodes = [...el.tokenLine.querySelectorAll(".token")];
+  parsed.forEach((item, i) => {
+    const n = nodes[i];
+    const wordRect = n.querySelector(".word").getBoundingClientRect();
+    const labelRect = n.querySelector(".label").getBoundingClientRect();
+    const sx = wordRect.left - rect.left + wordRect.width / 2;
+    const sy = wordRect.bottom - rect.top;
+    const ex = labelRect.left - rect.left + labelRect.width / 2;
+    const ey = labelRect.top - rect.top;
 
     const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    path.setAttribute("d", `M ${sx} ${sy} Q ${cx} ${cy} ${ex} ${ey}`);
+    path.setAttribute("d", `M ${sx} ${sy} Q ${(sx + ex) / 2} ${sy + 8} ${ex} ${ey}`);
     path.setAttribute("fill", "none");
-    path.setAttribute("stroke", "#c1cde6");
-    path.setAttribute("stroke-width", "1.2");
-    el.connectorLayer.appendChild(path);
+    path.setAttribute("stroke", "#9aa8c8");
+    path.setAttribute("stroke-width", "1.3");
+    path.setAttribute("class", "connector");
+    el.arrowLayer.appendChild(path);
   });
 }
 
-function hidePopover() {
-  el.popover.hidden = true;
-}
+function wireTokenEvents() {
+  el.tokenLine.querySelectorAll(".token").forEach((token) => {
+    const idx = Number(token.dataset.index);
+    const activate = () => {
+      state.activeToken = idx;
+      renderTokens(state.parsed);
+      requestAnimationFrame(() => renderConnectors(state.parsed));
+      renderWordDetail(state.parsed[idx]);
+      trackInteraction(state.parsed[idx].pos);
+    };
 
-function showPopover(index, targetEl) {
-  const item = state.parsed[index];
-  if (!item) return;
-  state.activeIndex = index;
-
-  el.popover.innerHTML = `
-    <h4>${item.word}</h4>
-    <p><strong>Part of speech:</strong> ${item.pos}</p>
-    <p><strong>Role in sentence:</strong> ${roleForPos(item.pos)}</p>
-    <p><strong>Why this classification:</strong> ${POS_INFO[item.pos]}</p>
-    <p><strong>Phrase membership:</strong> ${phraseMembership(index, state.parsed)}</p>
-    <p><strong>Alternative uses:</strong> ${altUse(item.pos)}</p>
-    <p class="meta"><strong>Extra example:</strong> ${exampleForPos(item.pos)}</p>
-  `;
-  el.popover.hidden = false;
-
-  const rect = targetEl.getBoundingClientRect();
-  if (window.innerWidth <= 980) {
-    el.popover.style.left = "0px";
-    el.popover.style.top = "auto";
-    el.popover.style.bottom = "0px";
-  } else {
-    el.popover.style.bottom = "auto";
-    el.popover.style.left = `${Math.min(window.innerWidth - 380, rect.left + 12)}px`;
-    el.popover.style.top = `${Math.max(14, rect.bottom + 10)}px`;
-  }
-
-  renderTokens(state.parsed);
-  requestAnimationFrame(() => renderConnectors(state.parsed));
-}
-
-function wireTokenInteractions() {
-  el.tokenLayer.querySelectorAll(".token").forEach((node) => {
-    const index = Number(node.dataset.index);
-    node.addEventListener("mouseenter", (ev) => {
-      if (!window.matchMedia("(hover: hover)").matches) return;
-      showPopover(index, ev.currentTarget);
+    token.addEventListener("mouseenter", () => {
+      if (window.matchMedia("(hover: hover)").matches) activate();
     });
-    node.addEventListener("click", (ev) => showPopover(index, ev.currentTarget));
+    token.addEventListener("click", activate);
   });
 }
 
 function renderAnalysis(rawText) {
   const text = state.settings.autoPunctuate ? autoPunctuate(rawText) : rawText.trim();
-  state.activeIndex = null;
-  hidePopover();
-
   if (!text) {
     state.parsed = [];
-    el.tokenLayer.innerHTML = "";
-    el.connectorLayer.innerHTML = "";
+    el.tokenLine.innerHTML = "";
+    el.arrowLayer.innerHTML = "";
+    renderWordDetail(null);
     return;
   }
-
   state.parsed = parseSentence(text);
+  state.activeToken = null;
   renderTokens(state.parsed);
   requestAnimationFrame(() => {
     renderConnectors(state.parsed);
-    wireTokenInteractions();
+    wireTokenEvents();
   });
+  renderWordDetail(null);
 }
 
-function checkWord(value) {
-  const v = normalizeWord(value);
-  if (!v) {
+function checkWord(word) {
+  const n = normalize(word);
+  if (!n) {
     el.grammarType.textContent = "—";
-    el.grammarExplanation.textContent = "Enter a word to see grammar guidance.";
+    el.grammarExplanation.textContent = "Type a word to get help.";
     return;
   }
-  const pos = classifyWord(v, nlp(v));
+  const pos = classify(n, nlp(n));
   el.grammarType.textContent = pos;
-  el.grammarExplanation.textContent = POS_INFO[pos];
+  el.grammarExplanation.textContent = glossary[pos]?.def || glossary.unknown.def;
+}
+
+function trackInteraction(pos) {
+  state.progress.total += 1;
+  state.progress.byType[pos] = (state.progress.byType[pos] || 0) + 1;
+  if (pos === "adjective" || pos === "adverb") state.progress.confusions["adjective vs adverb"] += 1;
+  if (pos === "determiner" || pos === "adjective") state.progress.confusions["determiner vs adjective"] += 1;
+  renderDashboard();
+}
+
+function renderDashboard() {
+  const topType = Object.entries(state.progress.byType).sort((a,b) => b[1]-a[1])[0] || ["noun",0];
+  const total = Math.max(state.progress.total, 1);
+  const confidence = Math.min(100, Math.round((topType[1] / total) * 100));
+
+  el.dashboard.innerHTML = `
+    <div class="metric"><strong>Confidence by grammar type</strong><p>${topType[0]}: ${confidence}%</p><div class="bar"><div class="fill" style="width:${confidence}%"></div></div></div>
+    <div class="metric"><strong>Common confusions</strong><p>Adj vs Adv: ${state.progress.confusions["adjective vs adverb"]}</p><p>Det vs Adj: ${state.progress.confusions["determiner vs adjective"]}</p></div>
+    <div class="metric"><strong>Recent progress</strong><p>Interactions: ${state.progress.total}</p><p>Most practiced: ${topType[0]}</p></div>
+    <div class="metric"><strong>Recommended next practice</strong><p>${state.progress.confusions["adjective vs adverb"] > state.progress.confusions["determiner vs adjective"] ? "Try adjective vs adverb compare mode." : "Try determiner-focused sorting mode."}</p></div>
+  `;
+}
+
+function setTab(name) {
+  el.tabButtons().forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
+  el.tabPanels().forEach((p) => p.classList.toggle("active", p.id === `tab-${name}`));
+}
+
+function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5); }
+
+function renderPractice(parsed) {
+  const words = parsed.map(p => p.word);
+
+  // Rebuild sentence
+  const shuffled = shuffle(words);
+  document.getElementById("tab-rebuild").innerHTML = `
+    <p>Drag words into the correct order.</p>
+    <div id="rebuild-bank">${shuffled.map((w,i)=>`<span class="draggable" draggable="true" data-word="${w}">${w}</span>`).join("")}</div>
+    <div id="rebuild-zone" class="dropzone"></div>
+    <div class="feedback" id="rebuild-feedback"></div>
+  `;
+
+  // Sort
+  const bins = ["noun","verb","adjective","adverb","other"];
+  document.getElementById("tab-sort").innerHTML = `<p>Drag each word into a grammar bin.</p>${bins.map(b=>`<div class="bin" data-bin="${b}"><strong>${b}</strong></div>`).join("")}<div id="sort-bank">${parsed.map(p=>`<span class="draggable" draggable="true" data-pos="${p.pos}" data-word="${p.word}">${p.word}</span>`).join("")}</div>`;
+
+  // Fix mistake
+  document.getElementById("tab-fix").innerHTML = `<p>Fix this sentence: <strong>She run very quick.</strong></p><button class="btn secondary" id="fix-answer">Show correction</button><div class="feedback" id="fix-feedback"></div>`;
+
+  // Identify phrase
+  document.getElementById("tab-phrase").innerHTML = `<p>Find the noun phrase in: <strong>The small dog barked loudly.</strong></p><button class="btn secondary" id="phrase-answer">Reveal</button><div class="feedback" id="phrase-feedback"></div>`;
+
+  // Compare
+  document.getElementById("tab-compare").innerHTML = `<p>Choose the correct word: "She sings ____"</p><button class="btn secondary" data-choice="beautiful">beautiful</button> <button class="btn secondary" data-choice="beautifully">beautifully</button><div class="feedback" id="compare-feedback"></div>`;
+
+  wirePractice(words);
+}
+
+function wirePractice(words) {
+  // generic drag
+  document.querySelectorAll('.draggable').forEach(d => {
+    d.addEventListener('dragstart', e => e.dataTransfer.setData('text/plain', e.target.dataset.word));
+  });
+
+  const rebuildZone = document.getElementById('rebuild-zone');
+  if (rebuildZone) {
+    rebuildZone.addEventListener('dragover', e => e.preventDefault());
+    rebuildZone.addEventListener('drop', e => {
+      e.preventDefault();
+      const word = e.dataTransfer.getData('text/plain');
+      rebuildZone.innerHTML += `<span class="draggable">${word}</span> `;
+      const built = rebuildZone.textContent.trim().replace(/\s+/g,' ');
+      if (built === words.join(' ')) document.getElementById('rebuild-feedback').textContent = '✅ Great ordering!';
+    });
+  }
+
+  document.querySelectorAll('.bin').forEach(bin => {
+    bin.addEventListener('dragover', e => e.preventDefault());
+    bin.addEventListener('drop', e => {
+      e.preventDefault();
+      const word = e.dataTransfer.getData('text/plain');
+      bin.innerHTML += ` <span>${word}</span>`;
+    });
+  });
+
+  const fixBtn = document.getElementById('fix-answer');
+  if (fixBtn) fixBtn.onclick = () => document.getElementById('fix-feedback').textContent = '✅ Correct: "She runs very quickly."';
+
+  const phraseBtn = document.getElementById('phrase-answer');
+  if (phraseBtn) phraseBtn.onclick = () => document.getElementById('phrase-feedback').textContent = '✅ Noun phrase: "The small dog"';
+
+  document.querySelectorAll('#tab-compare [data-choice]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.getElementById('compare-feedback').textContent = btn.dataset.choice === 'beautifully' ? '✅ Yes! Adverb modifies sings.' : '❌ Try again. You need an adverb.';
+    });
+  });
 }
 
 async function loadSampleSentence() {
   if (!state.sentences.length) {
-    const res = await fetch("sentences.json");
+    const res = await fetch('sentences.json');
     const data = await res.json();
     state.sentences = data.sentences || [];
   }
-  const pick = state.sentences[Math.floor(Math.random() * state.sentences.length)] || "";
-  el.input.value = pick;
-  renderAnalysis(pick);
-  el.status.textContent = "Loaded sample sentence.";
+  const sentence = state.sentences[Math.floor(Math.random() * state.sentences.length)] || '';
+  el.input.value = sentence;
+  renderAnalysis(sentence);
+  renderPractice(state.parsed);
+  el.status.textContent = 'Sample loaded.';
 }
 
 function toggleDrawer(drawer, open) {
-  drawer.classList.toggle("open", open);
-  drawer.setAttribute("aria-hidden", open ? "false" : "true");
+  drawer.classList.toggle('open', open);
+  drawer.setAttribute('aria-hidden', open ? 'false' : 'true');
 }
 
 function renderSettingsButtons() {
-  el.settingButtons().forEach((btn) => {
-    const key = btn.dataset.setting;
-    btn.classList.toggle("is-on", Boolean(state.settings[key]));
+  document.querySelectorAll('.toggle-btn[data-setting]').forEach(btn => {
+    btn.classList.toggle('is-on', !!state.settings[btn.dataset.setting]);
   });
 }
 
 async function loadVersionHistory() {
-  const res = await fetch("version-history.md");
+  const res = await fetch('version-history.md');
   const text = await res.text();
   const sections = [...text.matchAll(/^##\s+([0-9]+\.[0-9]+\.[0-9]+)\s+-\s+([0-9-]+)\n([\s\S]*?)(?=\n##\s|$)/gm)];
-
-  el.timeline.innerHTML = sections.map((m) => {
+  el.timeline.innerHTML = sections.map(m => {
     const [, version, date, body] = m;
-    const firstBullet = (body.match(/^-\s+(.+)/m) || ["", "No summary"])[1];
-    const href = version === state.version ? "index.html" : `versions/${version}/index.html`;
-    return `<article class="timeline-item"><a href="${href}">v${version}</a><div class="timeline-date">${date}</div><p class="timeline-summary">${firstBullet}</p></article>`;
-  }).join("");
+    const summary = (body.match(/^-\s+(.+)/m) || ['', 'No summary'])[1];
+    const href = version === state.version ? 'index.html' : `versions/${version}/index.html`;
+    return `<article class="timeline-item"><a href="${href}">v${version}</a><div class="timeline-date">${date}</div><p class="timeline-summary">${summary}</p></article>`;
+  }).join('');
 }
 
 function init() {
+  renderGlossary();
+  renderDashboard();
   renderSettingsButtons();
   loadVersionHistory();
   loadSampleSentence();
 
-  el.analyzeBtn.addEventListener("click", () => renderAnalysis(el.input.value));
-  el.sampleBtn.addEventListener("click", loadSampleSentence);
-  el.input.addEventListener("input", () => renderAnalysis(el.input.value));
-  el.wordInput.addEventListener("input", (e) => checkWord(e.target.value));
+  el.analyzeBtn.addEventListener('click', () => { renderAnalysis(el.input.value); renderPractice(state.parsed); });
+  el.sampleBtn.addEventListener('click', loadSampleSentence);
+  el.input.addEventListener('input', () => { renderAnalysis(el.input.value); renderPractice(state.parsed); });
+  el.wordInput.addEventListener('input', (e) => checkWord(e.target.value));
 
-  el.settingsBtn.addEventListener("click", () => toggleDrawer(el.settingsDrawer, true));
-  el.settingsClose.addEventListener("click", () => toggleDrawer(el.settingsDrawer, false));
-  el.settingsDrawer.addEventListener("mouseleave", () => toggleDrawer(el.settingsDrawer, false));
+  el.tabButtons().forEach(btn => btn.addEventListener('click', () => setTab(btn.dataset.tab)));
 
-  el.historyBtn.addEventListener("click", () => toggleDrawer(el.historyDrawer, true));
-  el.historyClose.addEventListener("click", () => toggleDrawer(el.historyDrawer, false));
-
-  el.settingButtons().forEach((btn) => {
-    btn.addEventListener("click", () => {
+  document.querySelectorAll('.toggle-btn[data-setting]').forEach(btn => {
+    btn.addEventListener('click', () => {
       const key = btn.dataset.setting;
       state.settings[key] = !state.settings[key];
       renderSettingsButtons();
@@ -295,14 +381,10 @@ function init() {
     });
   });
 
-  document.addEventListener("click", (e) => {
-    if (!el.popover.hidden && !el.popover.contains(e.target) && !e.target.closest(".token")) {
-      hidePopover();
-      state.activeIndex = null;
-      renderTokens(state.parsed);
-      requestAnimationFrame(() => renderConnectors(state.parsed));
-    }
-  });
+  document.getElementById('settings-btn').addEventListener('click', () => toggleDrawer(document.getElementById('settings-drawer'), true));
+  document.getElementById('settings-close').addEventListener('click', () => toggleDrawer(document.getElementById('settings-drawer'), false));
+  document.getElementById('history-btn').addEventListener('click', () => toggleDrawer(el.historyDrawer, true));
+  document.getElementById('history-close').addEventListener('click', () => toggleDrawer(el.historyDrawer, false));
 }
 
 init();

@@ -1,5 +1,14 @@
 # Version History
 
+## 1.3.0 - 2026-03-31
+- Reimagined Grammar Playground as a playful worksheet-style learning experience with natural colorful sentence analysis.
+- Added richer child-friendly word detail card with role, phrase membership, confusion notes, and extra examples.
+- Added full built-in glossary with simple definitions, spotting tips, mistakes, and linked terms.
+- Added five interactive practice modes: rebuild sentence, sort by grammar type, fix mistakes, identify phrases, and adjective-vs-adverb compare.
+- Added fast visual progress dashboard with confidence, confusions, recent progress, and next recommendation.
+- Added calm educational micro-animations for connector draw-in and interaction feedback.
+- Archived `1.2.1` under `versions/1.2.1/`.
+
 ## 1.2.1 - 2026-03-31
 - Refined analysis canvas presentation to a lighter, calmer educational board.
 - Removed top grammar labels and standardized labels below words only.

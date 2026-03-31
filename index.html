@@ -1,77 +1,76 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Grammar Playground</title>
-    <link rel="stylesheet" href="style.css" />
-    <script src="https://unpkg.com/compromise"></script>
-  </head>
-  <body>
-    <div class="app-shell">
-      <header class="app-bar">
-        <div class="wordmark-wrap">
-          <span class="wordmark-dot">G</span>
-          <h1 class="wordmark">Grammar Playground</h1>
-        </div>
-        <div class="app-bar-actions">
-          <button id="settings-btn" class="icon-btn" aria-label="Open settings">⚙</button>
-          <button id="history-btn" class="ghost-btn">Version history</button>
-        </div>
-      </header>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Grammar Playground</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://unpkg.com/compromise"></script>
+</head>
+<body>
+  <main class="app">
+    <header class="app-bar">
+      <h1>Grammar Playground</h1>
+      <button id="history-btn" class="btn ghost">Version history</button>
+    </header>
 
-      <section class="card sentence-card" aria-labelledby="sentence-heading">
-        <h2 id="sentence-heading">Sentence input</h2>
-        <div class="sentence-layout">
-          <textarea id="sentence-input" placeholder="Type a sentence for analysis..."></textarea>
-          <div class="sentence-actions">
-            <button id="analyze-btn" class="primary-btn">Analyze sentence</button>
-            <button id="sample-btn" class="secondary-btn">Use sample</button>
-          </div>
+    <section class="worksheet" aria-labelledby="worksheet-title">
+      <h2 id="worksheet-title">Interactive worksheet sentence stage</h2>
+      <div class="input-row">
+        <textarea id="sentence-input" placeholder="Type a sentence..."></textarea>
+        <div class="actions">
+          <button id="analyze-btn" class="btn primary">Analyse</button>
+          <button id="sample-btn" class="btn secondary">New sample</button>
         </div>
-        <p id="status" class="status" role="status" aria-live="polite">Ready.</p>
-      </section>
+      </div>
+      <p id="status">Ready to learn.</p>
+      <div id="analysis-stage" class="analysis-stage">
+        <svg id="arrow-layer" class="arrow-layer" aria-hidden="true"></svg>
+        <div id="token-line" class="token-line"></div>
+      </div>
+    </section>
 
-      <section class="card canvas-card" aria-labelledby="canvas-heading">
-        <h2 id="canvas-heading">Analysis canvas</h2>
-        <div id="analysis-canvas" class="analysis-canvas">
-          <svg id="connector-layer" class="connector-layer" aria-hidden="true"></svg>
-          <div id="token-layer" class="token-layer"></div>
-        </div>
-      </section>
+    <section class="learning-grid">
+      <article class="card detail-card">
+        <h3>Word detail card</h3>
+        <div id="word-detail">Tap or hover a word to see its learning card.</div>
+      </article>
+      <article class="card glossary-card">
+        <h3>Grammar glossary</h3>
+        <div id="glossary-list"></div>
+      </article>
+    </section>
 
-      <section class="card checker-card" aria-labelledby="checker-heading">
-        <h2 id="checker-heading">Single-word checker</h2>
-        <div class="checker-grid">
-          <input id="word-input" type="text" placeholder="Type one word" />
-          <div class="checker-result">
-            <p><strong>Detected type:</strong> <span id="grammar-type">—</span></p>
-            <p id="grammar-explanation" class="muted">Enter a word to see grammar guidance.</p>
-          </div>
-        </div>
-      </section>
+    <section class="card practice-card">
+      <h3>Practice studio</h3>
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="rebuild">Rebuild sentence</button>
+        <button class="tab-btn" data-tab="sort">Sort by grammar</button>
+        <button class="tab-btn" data-tab="fix">Fix mistake</button>
+        <button class="tab-btn" data-tab="phrase">Identify phrase</button>
+        <button class="tab-btn" data-tab="compare">Adjective vs adverb</button>
+      </div>
+      <div id="tab-rebuild" class="tab-panel active"></div>
+      <div id="tab-sort" class="tab-panel"></div>
+      <div id="tab-fix" class="tab-panel"></div>
+      <div id="tab-phrase" class="tab-panel"></div>
+      <div id="tab-compare" class="tab-panel"></div>
+    </section>
+
+    <section class="card dashboard-card">
+      <h3>Progress dashboard</h3>
+      <div id="dashboard"></div>
+    </section>
+  </main>
+
+  <aside id="history-drawer" class="drawer" aria-hidden="true">
+    <div class="drawer-head">
+      <h3>Version history</h3>
+      <button id="history-close" class="btn ghost">Close</button>
     </div>
+    <div id="version-timeline"></div>
+  </aside>
 
-    <div id="word-popover" class="word-popover" hidden></div>
-
-    <aside id="settings-drawer" class="drawer" aria-hidden="true">
-      <div class="drawer-header">
-        <h3>Settings</h3>
-        <button id="settings-close" class="icon-btn" aria-label="Close settings">×</button>
-      </div>
-      <button class="toggle-btn is-on" data-setting="autoPunctuate">Auto punctuation</button>
-      <button class="toggle-btn is-on" data-setting="showLabels">Show labels</button>
-      <button class="toggle-btn is-on" data-setting="showConnectors">Show connectors</button>
-    </aside>
-
-    <aside id="history-drawer" class="drawer" aria-hidden="true">
-      <div class="drawer-header">
-        <h3>Version history</h3>
-        <button id="history-close" class="icon-btn" aria-label="Close history">×</button>
-      </div>
-      <div id="version-timeline" class="timeline"></div>
-    </aside>
-
-    <script src="script.js"></script>
-  </body>
+  <script src="script.js"></script>
+</body>
 </html>
