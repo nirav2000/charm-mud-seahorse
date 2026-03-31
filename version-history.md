@@ -1,5 +1,15 @@
 # Version History
 
+## 1.1.7 - 2026-03-31
+- Fixed labels to render as true sub-labels beneath words instead of appearing beside them.
+- Improved natural sentence mode so tokens flow like a real sentence without blocky spacing.
+- Enhanced auto punctuation to handle capitalization, commas, full stops, question marks, exclamation marks, and simple quoted speech heuristics.
+- Rebuilt curved arrows with arrowheads, varied direction/length, and less constrained layout.
+- Added a simple Grammar Playground logo badge.
+- Improved markdown version-history rendering (spacing, formatting) and removed the version quick-list at the top.
+- Fixed version heading link behavior so clicking the latest version goes to the current app, not a missing archive path.
+- Archived `1.1.6` under `versions/1.1.6/`.
+
 ## 1.1.6 - 2026-03-31
 - Fixed settings card layout so toggles render cleanly and read clearly.
 - Updated color key samples to match exactly the same classes used by highlighted words.

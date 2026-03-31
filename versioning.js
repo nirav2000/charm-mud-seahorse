@@ -55,26 +55,39 @@
     }
 
     function decorateVersionHeadings() {
-      const headings = historyContainer.querySelectorAll("h2");
-      headings.forEach((h2) => {
+      historyContainer.querySelectorAll("h2").forEach((h2) => {
         const match = h2.textContent.match(/(\d+\.\d+\.\d+)/);
         if (!match) return;
         const version = match[1];
         const link = document.createElement("a");
         link.href = getVersionPath(version);
         link.textContent = h2.textContent;
+        link.style.textDecoration = "none";
+        link.style.color = "#2346a0";
         h2.textContent = "";
         h2.appendChild(link);
       });
     }
 
-    function renderQuickLinks() {
-      const sorted = [...versions].sort(compareVersions);
-      const items = sorted.map((version) => {
-        const current = version === currentVersion ? " <strong>(current)</strong>" : "";
-        return `<li><a href="${getVersionPath(version)}">${version}</a>${current}</li>`;
-      }).join("");
-      return `<section><h2>Open a specific version</h2><ul>${items}</ul></section><hr />`;
+    function styleMarkdown() {
+      historyContainer.style.padding = "6px 2px";
+      historyContainer.querySelectorAll("h1").forEach((el) => {
+        el.style.marginBottom = "10px";
+      });
+      historyContainer.querySelectorAll("h2").forEach((el) => {
+        el.style.marginTop = "16px";
+        el.style.marginBottom = "8px";
+        el.style.paddingBottom = "6px";
+        el.style.borderBottom = "1px solid #e6ecff";
+      });
+      historyContainer.querySelectorAll("ul").forEach((el) => {
+        el.style.marginTop = "6px";
+        el.style.marginBottom = "12px";
+        el.style.paddingLeft = "20px";
+      });
+      historyContainer.querySelectorAll("p, li").forEach((el) => {
+        el.style.lineHeight = "1.5";
+      });
     }
 
     document.getElementById("version-button").addEventListener("click", () => modal.classList.add("open"));
@@ -89,13 +102,12 @@
       const response = await fetch(`${rootPrefix}version-history.md`);
       if (!response.ok) throw new Error(`Unable to load version-history.md (${response.status})`);
       const markdown = await response.text();
-
       versions = [...markdown.matchAll(/^##\s+([0-9]+\.[0-9]+\.[0-9]+)/gm)].map((m) => m[1]);
 
       await ensureMarked();
-      const parsed = window.marked && window.marked.parse ? window.marked.parse(markdown) : fallbackMarkdown(markdown);
-      historyContainer.innerHTML = `${renderQuickLinks()}${parsed}`;
+      historyContainer.innerHTML = window.marked?.parse ? window.marked.parse(markdown) : fallbackMarkdown(markdown);
       decorateVersionHeadings();
+      styleMarkdown();
     } catch (error) {
       historyContainer.textContent = `Could not load version history: ${error.message}`;
     }

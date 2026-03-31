@@ -5,90 +5,74 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Interactive grammar playground with real-time tagging, natural sentence mode, glossary help, and version history."
+      content="Interactive grammar playground with real-time tagging, natural sentence layout, and glossary help."
     />
     <title>Grammar Highlighter</title>
     <script src="https://unpkg.com/compromise"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
       :root { --ink:#1b2238; --muted:#5f6d87; }
-      body {
-        margin:0;
-        font-family:"Nunito","Segoe UI",Arial,sans-serif;
-        color:var(--ink);
-        background:
-          radial-gradient(circle at 8% 12%, #fff3e7 0, transparent 32%),
-          radial-gradient(circle at 92% 6%, #e8f6ff 0, transparent 30%),
-          radial-gradient(circle at 84% 90%, #ecfbe4 0, transparent 26%),
-          #f7fbff;
-      }
+      body { margin:0; font-family:"Nunito","Segoe UI",Arial,sans-serif; color:var(--ink);
+        background: radial-gradient(circle at 8% 12%, #fff3e7 0, transparent 32%), radial-gradient(circle at 92% 6%, #e8f6ff 0, transparent 30%), radial-gradient(circle at 84% 90%, #ecfbe4 0, transparent 26%), #f7fbff; }
       .app{max-width:1120px;margin:20px auto;padding:0 16px 24px;}
-      .hero,.panel{
-        background:linear-gradient(150deg,rgba(255,255,255,.9),rgba(255,255,255,.76));
-        border:1px solid rgba(183,198,235,.45);
-        border-radius:20px;
-        box-shadow:0 12px 30px rgba(33,58,122,.08);
-      }
-      .hero{padding:22px;margin-bottom:12px;}
-      .hero h1{margin:0;font-size:2.1rem;}
-      .hero p{margin:8px 0 0;color:var(--muted)}
-      .panel{padding:16px;margin-bottom:12px;}
+      .hero,.panel{background:linear-gradient(150deg,rgba(255,255,255,.9),rgba(255,255,255,.76));border:1px solid rgba(183,198,235,.45);border-radius:20px;box-shadow:0 12px 30px rgba(33,58,122,.08)}
+      .hero{padding:22px;margin-bottom:12px;display:flex;justify-content:space-between;gap:16px;align-items:center}
+      .logo{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:999px;background:#f2f6ff;border:1px solid #c9d7f8;font-weight:800}
+      .logo-badge{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#5e7bff,#7bd4ff);color:#fff}
+      .hero h1{margin:0;font-size:2.1rem}.hero p{margin:8px 0 0;color:var(--muted)} .panel{padding:16px;margin-bottom:12px;}
+      .controls{display:grid;grid-template-columns:1fr auto auto auto;gap:10px;align-items:start}
+      textarea,input{width:100%;box-sizing:border-box;border:1px solid #c4d2f2;border-radius:12px;padding:10px 12px;font-size:1rem;font-family:inherit;background:#fff}
+      textarea{min-height:92px;resize:vertical}
+      button{border:none;border-radius:12px;padding:10px 14px;font-weight:700;color:#fff;background:linear-gradient(120deg,#355fff,#4f74ff);cursor:pointer}
+      button.secondary{background:linear-gradient(120deg,#5f6b89,#7080a3)}
+      #status{color:var(--muted);margin:8px 0 0}
 
-      .controls{display:grid;grid-template-columns:1fr auto auto auto;gap:10px;align-items:start;}
-      textarea,input{width:100%;box-sizing:border-box;border:1px solid #c4d2f2;border-radius:12px;padding:10px 12px;font-size:1rem;font-family:inherit;background:#fff;}
-      textarea{min-height:92px;resize:vertical;}
-      button{border:none;border-radius:12px;padding:10px 14px;font-weight:700;color:#fff;background:linear-gradient(120deg,#355fff,#4f74ff);cursor:pointer;}
-      button.secondary{background:linear-gradient(120deg,#5f6b89,#7080a3);}
-      #status{color:var(--muted);margin:8px 0 0;}
+      .sentence-wrap{position:relative;margin-top:12px;padding-top:66px}
+      .sentence{display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px 6px;font-size:2rem;line-height:1.2}
+      .token{display:inline-flex;flex-direction:column;align-items:center;justify-content:flex-end;position:relative}
+      .token-word{font-weight:800;line-height:1.05;padding:0 4px;border-radius:6px}
+      .token-label{font-size:.66rem;line-height:1;margin-top:2px;color:#4f5d7a;min-height:.75rem}
 
-      .sentence-wrap{position:relative;margin-top:10px;padding-top:56px;}
-      .sentence{line-height:2.1;font-size:2rem;font-weight:800;word-spacing:3px;}
-      .token{display:inline-flex;flex-direction:column;align-items:center;position:relative;padding:0 2px;min-width:14px;}
-      .token-word{line-height:1.05;border-radius:6px;padding:0 3px;}
-      .token-label{font-size:.72rem;color:#4e5c78;margin-top:2px;line-height:1;}
-      .natural-mode .sentence{font-size:1.95rem;word-spacing:normal;letter-spacing:normal;line-height:1.7;}
-      .natural-mode .token{display:inline;min-width:0;}
-      .natural-mode .token-label{display:block;font-size:.68rem;text-align:center;margin-top:3px;}
+      .natural-mode .sentence{display:block;font-size:1.95rem;line-height:1.6;word-spacing:normal}
+      .natural-mode .token{display:inline-flex;vertical-align:bottom;margin-right:4px;}
+      .natural-mode .token-label{display:block;text-align:center;margin-top:1px;}
 
-      .arrow-svg{position:absolute;left:0;top:0;width:100%;height:56px;overflow:visible;pointer-events:none;}
-      .arrow-label{font-size:12px;fill:#3d4f7a;font-weight:700;}
-      .arrow-path{stroke:rgba(61,79,122,.85);stroke-width:1.7;fill:none;}
+      .arrow-svg{position:absolute;left:0;top:0;width:100%;height:64px;overflow:visible;pointer-events:none}
+      .arrow-label{font-size:12px;fill:#3d4f7a;font-weight:700}
+      .arrow-path{stroke:rgba(61,79,122,.88);stroke-width:1.8;fill:none;marker-end:url(#arrowhead)}
 
-      .settings-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;}
-      .setting-item{display:flex;gap:10px;align-items:flex-start;background:rgba(243,248,255,.92);border:1px solid #d4def7;padding:10px;border-radius:12px;}
-      .setting-item input{width:18px;height:18px;margin-top:3px;}
-      .setting-copy strong{display:block;font-size:.94rem;}
-      .setting-copy span{font-size:.84rem;color:#687592;}
+      .settings-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+      .setting-item{display:flex;gap:10px;align-items:flex-start;background:rgba(243,248,255,.92);border:1px solid #d4def7;padding:10px;border-radius:12px}
+      .setting-item input{width:18px;height:18px;margin-top:3px}
+      .setting-copy strong{display:block;font-size:.94rem}.setting-copy span{font-size:.84rem;color:#687592}
 
-      .legend{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;}
-      .legend-item{display:flex;align-items:center;gap:8px;font-size:.9rem;padding:6px 8px;border-radius:10px;background:rgba(245,248,255,.85);}
-      .legend-sample{font-weight:800;border-radius:6px;padding:0 6px;}
-
-      .pronoun{color:#2e76c2;background:#e4f2ff}.verb{color:#1e8f5e;background:#e3fff1}.noun{color:#b72d49;background:#ffe5ec}
-      .article{color:#8f7a04;background:#fff5c6}.adjective{color:#a83895;background:#ffe3f7}.adverb{color:#646464;background:#ececec}
-      .preposition{color:#09799a;background:#dff6ff}.conjunction{color:#9b6b0f;background:#fcefc9}.determiner{color:#157f70;background:#defdf5}
-      .interjection{color:#6e4ca7;background:#efe4ff}.unknown{color:#4f5c73;background:#edf1f8}
+      .legend{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px}
+      .legend-item{display:flex;align-items:center;gap:8px;font-size:.9rem;padding:6px 8px;border-radius:10px;background:rgba(245,248,255,.85)}
+      .legend-sample{font-weight:800;border-radius:6px;padding:0 6px}
+      .pronoun{color:#2e76c2;background:#e4f2ff}.verb{color:#1e8f5e;background:#e3fff1}.noun{color:#b72d49;background:#ffe5ec}.article{color:#8f7a04;background:#fff5c6}
+      .adjective{color:#a83895;background:#ffe3f7}.adverb{color:#646464;background:#ececec}.preposition{color:#09799a;background:#dff6ff}.conjunction{color:#9b6b0f;background:#fcefc9}
+      .determiner{color:#157f70;background:#defdf5}.interjection{color:#6e4ca7;background:#efe4ff}.unknown{color:#4f5c73;background:#edf1f8}
       .text-color-mode .token-word{background:transparent!important;padding:0}
 
-      .hover-help{margin-top:10px;padding:12px;border-radius:12px;background:rgba(246,250,255,.95);border:1px solid #d9e3fa;}
-      .hover-help h4{margin:0 0 6px;}
-      .hover-help p{margin:4px 0;font-size:.94rem;}
+      .hover-help{margin-top:10px;padding:12px;border-radius:12px;background:rgba(246,250,255,.95);border:1px solid #d9e3fa}.hover-help h4{margin:0 0 6px}.hover-help p{margin:4px 0;font-size:.94rem}
 
       footer{margin-top:16px;border-top:1px solid #d7e2f7;padding-top:12px}
       #version-button{background:#f3f7ff;color:#223;border:1px solid #bdc7e9;border-radius:999px}
       #version-modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:10}
-      #version-modal.open{display:flex}.modal-content{width:min(900px,94vw);max-height:86vh;overflow-y:auto;background:#fff;border-radius:12px;padding:16px}
-      .modal-header{display:flex;justify-content:space-between;align-items:center}.modal-close{border:none;background:transparent;color:#222;font-size:24px;cursor:pointer}
-      .version-controls{margin:10px 0;display:flex;gap:8px}
+      #version-modal.open{display:flex}.modal-content{width:min(900px,94vw);max-height:86vh;overflow-y:auto;background:#fff;border-radius:12px;padding:18px}
+      .modal-header{display:flex;justify-content:space-between;align-items:center}.modal-close{border:none;background:transparent;color:#222;font-size:24px;cursor:pointer}.version-controls{margin:10px 0;display:flex;gap:8px}
 
-      @media(max-width:880px){.controls{grid-template-columns:1fr}.sentence{font-size:1.55rem;line-height:1.9}.sentence-wrap{padding-top:64px}}
+      @media(max-width:900px){.controls{grid-template-columns:1fr}.sentence,.natural-mode .sentence{font-size:1.45rem}.hero{flex-direction:column;align-items:flex-start}}
     </style>
   </head>
   <body>
     <main class="app">
       <section class="hero">
-        <h1>Grammar Playground ✨</h1>
-        <p>Type a sentence and watch grammatical terms appear in realtime.</p>
+        <div>
+          <h1>Grammar Playground ✨</h1>
+          <p>Type a sentence and watch grammatical terms appear in realtime.</p>
+        </div>
+        <div class="logo"><span class="logo-badge">G</span><span>Grammar Playground</span></div>
       </section>
 
       <section class="panel">
@@ -108,9 +92,9 @@
           <label class="setting-item"><input type="checkbox" id="setting-realtime" checked /><span class="setting-copy"><strong>Realtime tagging</strong><span>Apply grammar markers as you type.</span></span></label>
           <label class="setting-item"><input type="checkbox" id="setting-text-color" /><span class="setting-copy"><strong>Color text only</strong><span>Use color on text instead of highlighted backgrounds.</span></span></label>
           <label class="setting-item"><input type="checkbox" id="setting-labels" checked /><span class="setting-copy"><strong>Labels under words</strong><span>Show part-of-speech labels beneath each token.</span></span></label>
-          <label class="setting-item"><input type="checkbox" id="setting-curvy" /><span class="setting-copy"><strong>Curved arrows</strong><span>Draw curved arrows from words to grammar labels.</span></span></label>
-          <label class="setting-item"><input type="checkbox" id="setting-natural" checked /><span class="setting-copy"><strong>Natural sentence mode</strong><span>Use natural spacing and inline sentence flow.</span></span></label>
-          <label class="setting-item"><input type="checkbox" id="setting-auto-punctuate" /><span class="setting-copy"><strong>Auto punctuation</strong><span>Auto-capitalize and add end punctuation.</span></span></label>
+          <label class="setting-item"><input type="checkbox" id="setting-curvy" /><span class="setting-copy"><strong>Curved arrows</strong><span>Draw curved arrows with arrowheads to labels.</span></span></label>
+          <label class="setting-item"><input type="checkbox" id="setting-natural" checked /><span class="setting-copy"><strong>Natural sentence mode</strong><span>Render as flowing sentence instead of boxed columns.</span></span></label>
+          <label class="setting-item"><input type="checkbox" id="setting-auto-punctuate" /><span class="setting-copy"><strong>Auto punctuation</strong><span>Use commas/full stops/quotes/exclamations heuristics.</span></span></label>
         </div>
       </section>
 
@@ -126,9 +110,9 @@
       </section>
 
       <section class="panel">
-        <h3 style="margin-top:0">Grammar guide (hover help + quick definitions)</h3>
+        <h3 style="margin-top:0">Grammar guide (hover for help)</h3>
         <div id="hover-help" class="hover-help">
-          <h4>Hover over a word to see details</h4>
+          <h4>Hover over a highlighted word</h4>
           <p><strong>Definition:</strong> —</p>
           <p><strong>Example:</strong> —</p>
           <p><strong>Common misconception:</strong> —</p>
@@ -136,220 +120,80 @@
       </section>
 
       <footer>
-        <button id="version-button" type="button" aria-haspopup="dialog" aria-controls="version-modal">
-          Version <span id="version-label">1.1.6</span>
-        </button>
+        <button id="version-button" type="button" aria-haspopup="dialog" aria-controls="version-modal">Version <span id="version-label">1.1.7</span></button>
       </footer>
     </main>
 
     <div id="version-modal" role="dialog" aria-modal="true" aria-labelledby="version-title">
       <div class="modal-content">
-        <div class="modal-header">
-          <h3 id="version-title">Version History</h3>
-          <button class="modal-close" id="close-modal" aria-label="Close">×</button>
-        </div>
-        <div class="version-controls">
-          <button id="prev-version" type="button">Open previous version</button>
-          <button id="next-version" type="button">Open newer version</button>
-        </div>
+        <div class="modal-header"><h3 id="version-title">Version History</h3><button class="modal-close" id="close-modal" aria-label="Close">×</button></div>
+        <div class="version-controls"><button id="prev-version" type="button">Open previous version</button><button id="next-version" type="button">Open newer version</button></div>
         <div id="version-history-rendered">Loading history…</div>
       </div>
     </div>
 
     <script src="versioning.js"></script>
     <script>
-      const CURRENT_VERSION = "1.1.6";
+      const CURRENT_VERSION = "1.1.7";
       let sentences = [];
-      const TAG_ORDER = ["article", "noun", "pronoun", "verb", "adjective", "adverb", "determiner", "preposition", "conjunction", "interjection", "unknown"];
+      const TAG_ORDER = ["article","noun","pronoun","verb","adjective","adverb","determiner","preposition","conjunction","interjection","unknown"];
       const glossary = {
-        article: { definition: "Introduces a noun (a, an, the).", example: "The cat slept.", misconception: "Articles are not adjectives, even though they come before nouns." },
-        noun: { definition: "Names a person, place, thing, or idea.", example: "River", misconception: "Not every capitalized word is a noun in context." },
-        pronoun: { definition: "Replaces a noun.", example: "She smiled.", misconception: "Pronouns are not always subjects; they can be objects too." },
-        verb: { definition: "Shows action or state of being.", example: "They run.", misconception: "A sentence can have helping + main verbs together." },
-        adjective: { definition: "Describes a noun or pronoun.", example: "Blue sky.", misconception: "Not every descriptive word is an adverb." },
-        adverb: { definition: "Modifies a verb/adjective/adverb.", example: "He ran quickly.", misconception: "Many adverbs do not end in -ly." },
-        determiner: { definition: "Specifies which noun (this, my, those).", example: "Those books.", misconception: "Determiners are a separate class from adjectives." },
-        preposition: { definition: "Shows relation in space/time (in, on, under).", example: "On the table.", misconception: "Prepositions are not conjunctions." },
-        conjunction: { definition: "Connects words/phrases/clauses.", example: "Tea and coffee.", misconception: "Conjunctions do not describe nouns." },
-        interjection: { definition: "Expresses sudden feeling.", example: "Oops!", misconception: "Interjections are often standalone, not sentence structure glue." },
-        unknown: { definition: "Couldn’t classify confidently.", example: "Context needed.", misconception: "Unknown does not mean incorrect; it may be ambiguous." }
+        article:{definition:"Introduces a noun (a, an, the).",example:"The cat slept.",misconception:"Articles are not adjectives."},
+        noun:{definition:"Names a person/place/thing/idea.",example:"River.",misconception:"Capitalized words are not always nouns in context."},
+        pronoun:{definition:"Replaces a noun.",example:"She smiled.",misconception:"Pronouns can be objects too, not only subjects."},
+        verb:{definition:"Shows action or state.",example:"They run.",misconception:"A clause can have helping + main verb."},
+        adjective:{definition:"Describes a noun/pronoun.",example:"Blue sky.",misconception:"Not every descriptive word is an adverb."},
+        adverb:{definition:"Modifies verb/adjective/adverb.",example:"He ran quickly.",misconception:"Not all adverbs end in -ly."},
+        determiner:{definition:"Specifies nouns (this, my).",example:"Those books.",misconception:"Determiners are not just adjectives."},
+        preposition:{definition:"Shows relationship in time/space.",example:"On the table.",misconception:"Prepositions do not join clauses like conjunctions."},
+        conjunction:{definition:"Connects words or clauses.",example:"Tea and coffee.",misconception:"Conjunctions are connectors, not descriptors."},
+        interjection:{definition:"Expresses sudden emotion.",example:"Oops!",misconception:"Interjections are often standalone."},
+        unknown:{definition:"Couldn’t confidently classify.",example:"Context needed.",misconception:"Unknown may simply be ambiguous."}
       };
-      const manualRules = {
-        prepositions: ["to","in","on","at","by","with","about","against","between","into","through","past","under","over","near"],
-        conjunctions: ["and","or","but","so","yet","for","nor"],
-        determiners: ["this","that","these","those","my","your","his","her","its","our","their"],
-        interjections: ["wow","oops","hey","ouch","bravo","alas"]
-      };
-      const settings = { realtime:true, textColor:false, labels:true, curvy:false, natural:true, autoPunctuate:false };
+      const manualRules={prepositions:["to","in","on","at","by","with","about","against","between","into","through","past","under","over","near"],conjunctions:["and","or","but","so","yet","for","nor"],determiners:["this","that","these","those","my","your","his","her","its","our","their"],interjections:["wow","oops","hey","ouch","bravo","alas"]};
+      const settings={realtime:true,textColor:false,labels:true,curvy:false,natural:true,autoPunctuate:false};
 
-      const output = document.getElementById("output");
-      const grammarType = document.getElementById("grammar-type");
-      const status = document.getElementById("status");
-      const wordInput = document.getElementById("word-input");
-      const sentenceInput = document.getElementById("sentence-input");
-      const legend = document.getElementById("legend");
-      const hoverHelp = document.getElementById("hover-help");
+      const output=document.getElementById("output"),grammarType=document.getElementById("grammar-type"),status=document.getElementById("status"),wordInput=document.getElementById("word-input"),sentenceInput=document.getElementById("sentence-input"),legend=document.getElementById("legend"),hoverHelp=document.getElementById("hover-help");
+      const normalizeWord=(w)=>w.toLowerCase().replace(/^[^a-z']+|[^a-z']+$/g,"");
 
-      function normalizeWord(word) { return word.toLowerCase().replace(/^[^a-z']+|[^a-z']+$/g, ""); }
-
-      function applyAutoPunctuation(text) {
-        let t = text.trim().replace(/\s+/g, " ");
-        if (!t) return t;
-        t = t.charAt(0).toUpperCase() + t.slice(1);
-        if (!/[.!?]$/.test(t)) t += ".";
+      function applyAutoPunctuation(text){
+        let t=text.trim().replace(/\s+/g," ");
+        if(!t) return t;
+        t=t.charAt(0).toUpperCase()+t.slice(1);
+        t=t.replace(/\bi\b/g,"I");
+        t=t.replace(/\b(\w+)\s+(and|but|so)\s+(I|you|he|she|they|we)\b/g,"$1, $2 $3");
+        t=t.replace(/\b(he said|she said|they said|he asked|she asked|they asked)\s+([^".!?]+)([.!?])?/i,(m,v,s,p)=>`${v}, \"${s.trim()}${p||"."}\"`);
+        if(!/[.!?]$/.test(t)){
+          if(/\b(wow|oops|amazing|great)\b/i.test(t)) t+="!";
+          else if(/^(who|what|when|where|why|how)\b/i.test(t)) t+="?";
+          else t+=".";
+        }
         return t;
       }
 
-      function getWordClass(word, doc) {
-        const normalized = normalizeWord(word);
-        if (!normalized) return "unknown";
-        if (doc.match(normalized).has("#Pronoun")) return "pronoun";
-        if (doc.match(normalized).has("#Verb")) return "verb";
-        if (doc.match(normalized).has("#Noun")) return "noun";
-        if (doc.match(normalized).has("#Adjective")) return "adjective";
-        if (doc.match(normalized).has("#Adverb")) return "adverb";
-        if (["the","a","an"].includes(normalized)) return "article";
-        if (manualRules.prepositions.includes(normalized)) return "preposition";
-        if (manualRules.conjunctions.includes(normalized)) return "conjunction";
-        if (manualRules.determiners.includes(normalized)) return "determiner";
-        if (manualRules.interjections.includes(normalized)) return "interjection";
-        return "unknown";
-      }
+      function getWordClass(word,doc){const n=normalizeWord(word);if(!n)return"unknown";if(doc.match(n).has("#Pronoun"))return"pronoun";if(doc.match(n).has("#Verb"))return"verb";if(doc.match(n).has("#Noun"))return"noun";if(doc.match(n).has("#Adjective"))return"adjective";if(doc.match(n).has("#Adverb"))return"adverb";if(["the","a","an"].includes(n))return"article";if(manualRules.prepositions.includes(n))return"preposition";if(manualRules.conjunctions.includes(n))return"conjunction";if(manualRules.determiners.includes(n))return"determiner";if(manualRules.interjections.includes(n))return"interjection";return"unknown";}
+      function renderLegend(){legend.innerHTML=TAG_ORDER.map((t)=>`<div class="legend-item"><span class="legend-sample ${t}">Sample</span><span>${t}</span></div>`).join("");}
+      function showGlossary(tag){const g=glossary[tag]||glossary.unknown;hoverHelp.innerHTML=`<h4>${tag}</h4><p><strong>Definition:</strong> ${g.definition}</p><p><strong>Example:</strong> ${g.example}</p><p><strong>Common misconception:</strong> ${g.misconception}</p>`;}
 
-      function renderLegend() {
-        legend.innerHTML = TAG_ORDER.map((tag) =>
-          `<div class="legend-item"><span class="legend-sample ${tag}">Example</span><span>${tag}</span></div>`
-        ).join("");
-      }
+      function identifyGrammar(sentence){const words=sentence.match(/\S+/g)||[];const doc=nlp(sentence);return words.map((word,idx)=>{const c=getWordClass(word,doc);const label=settings.labels?`<span class="token-label">${c}</span>`:"<span class='token-label'></span>";return `<span class="token" data-index="${idx}" data-pos="${c}"><span class="token-word ${c}">${word}</span>${label}</span>`;});}
 
-      function showGlossary(tag) {
-        const item = glossary[tag] || glossary.unknown;
-        hoverHelp.innerHTML = `<h4>${tag}</h4><p><strong>Definition:</strong> ${item.definition}</p><p><strong>Example:</strong> ${item.example}</p><p><strong>Common misconception:</strong> ${item.misconception}</p>`;
-      }
-
-      function identifyGrammar(sentence) {
-        const words = sentence.match(/\S+/g) || [];
-        const doc = nlp(sentence);
-        return words.map((word, idx) => {
-          const wordClass = getWordClass(word, doc);
-          const label = settings.labels ? `<span class="token-label">${wordClass}</span>` : "";
-          return `<span class="token" data-index="${idx}" data-pos="${wordClass}"><span class="token-word ${wordClass}">${word}</span>${label}</span>`;
+      function renderCurvedArrows(sentenceNode){if(!settings.curvy)return;const tokens=[...sentenceNode.querySelectorAll('.token')];if(!tokens.length)return;const svgNS='http://www.w3.org/2000/svg';const svg=document.createElementNS(svgNS,'svg');svg.setAttribute('class','arrow-svg');svg.innerHTML='<defs><marker id="arrowhead" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="rgba(61,79,122,.88)"/></marker></defs>';
+        const rect=sentenceNode.getBoundingClientRect();
+        tokens.forEach((token,i)=>{const word=token.querySelector('.token-word');const wr=word.getBoundingClientRect();const x=wr.left-rect.left+wr.width/2;const dir=i%2===0?-1:1;const startX=x+dir*(20+ (i%3)*8);const startY=10+(i%3)*6;const endY=56;const ctrlX=x+dir*10;const ctrlY=28;
+          const path=document.createElementNS(svgNS,'path');path.setAttribute('d',`M ${startX} ${startY} Q ${ctrlX} ${ctrlY} ${x} ${endY}`);path.setAttribute('class','arrow-path');svg.appendChild(path);
+          const text=document.createElementNS(svgNS,'text');text.setAttribute('x',startX-14);text.setAttribute('y',startY-2);text.setAttribute('class','arrow-label');text.textContent=token.dataset.pos;svg.appendChild(text);
         });
+        sentenceNode.parentElement.prepend(svg);
       }
 
-      function renderCurvedArrows(container) {
-        const tokens = [...container.querySelectorAll(".token")];
-        if (!settings.curvy || tokens.length === 0) return;
+      function renderSentence(text){let sentence=text.trim();if(settings.autoPunctuate)sentence=applyAutoPunctuation(sentence);if(!sentence){output.innerHTML='<em>Please type a sentence first.</em>';return;}output.classList.toggle('text-color-mode',settings.textColor);output.classList.toggle('natural-mode',settings.natural);const toks=identifyGrammar(sentence);output.innerHTML=`<div class="sentence">${toks.join(' ')}</div>`;const sentenceNode=output.querySelector('.sentence');sentenceNode.querySelectorAll('.token-word').forEach((el)=>el.addEventListener('mouseenter',()=>showGlossary([...el.classList].find((c)=>glossary[c])||'unknown')));renderCurvedArrows(sentenceNode);}      
 
-        const svgNS = "http://www.w3.org/2000/svg";
-        const svg = document.createElementNS(svgNS, "svg");
-        svg.setAttribute("class", "arrow-svg");
-
-        const rect = container.getBoundingClientRect();
-        tokens.forEach((token) => {
-          const wordEl = token.querySelector(".token-word");
-          const wordRect = wordEl.getBoundingClientRect();
-          const x = wordRect.left - rect.left + wordRect.width / 2;
-          const yEnd = 50;
-          const yStart = 14;
-
-          const path = document.createElementNS(svgNS, "path");
-          path.setAttribute("d", `M ${x - 22} ${yStart} C ${x - 5} ${yStart - 2}, ${x - 7} ${yEnd - 10}, ${x} ${yEnd}`);
-          path.setAttribute("class", "arrow-path");
-          svg.appendChild(path);
-
-          const text = document.createElementNS(svgNS, "text");
-          text.setAttribute("x", x - 28);
-          text.setAttribute("y", 11);
-          text.setAttribute("class", "arrow-label");
-          text.textContent = token.dataset.pos;
-          svg.appendChild(text);
-        });
-
-        container.prepend(svg);
-      }
-
-      function renderSentence(text) {
-        let sentence = text.trim();
-        if (settings.autoPunctuate) sentence = applyAutoPunctuation(sentence);
-        if (!sentence) {
-          output.innerHTML = "<em>Please type a sentence first.</em>";
-          return;
-        }
-
-        const tokens = identifyGrammar(sentence);
-        output.classList.toggle("text-color-mode", settings.textColor);
-        output.classList.toggle("natural-mode", settings.natural);
-        output.innerHTML = `<div class="sentence">${tokens.join(" ")}</div>`;
-
-        const sentenceNode = output.querySelector(".sentence");
-        renderCurvedArrows(sentenceNode);
-        sentenceNode.querySelectorAll(".token-word").forEach((wordEl) => {
-          wordEl.addEventListener("mouseenter", () => showGlossary([...wordEl.classList].find((c) => glossary[c]) || "unknown"));
-        });
-      }
-
-      function checkWord() {
-        const inputWord = wordInput.value.trim();
-        if (!inputWord) return (grammarType.textContent = "---");
-        const normalized = normalizeWord(inputWord);
-        const doc = nlp(normalized);
-        let type = "Unknown";
-        if (doc.has("#Pronoun")) type = "Pronoun";
-        else if (doc.has("#Verb")) type = "Verb";
-        else if (doc.has("#Noun")) type = "Noun";
-        else if (doc.has("#Adjective")) type = "Adjective";
-        else if (doc.has("#Adverb")) type = "Adverb";
-        else if (["the","a","an"].includes(normalized)) type = "Article";
-        else if (manualRules.prepositions.includes(normalized)) type = "Preposition";
-        else if (manualRules.conjunctions.includes(normalized)) type = "Conjunction";
-        else if (manualRules.determiners.includes(normalized)) type = "Determiner";
-        else if (manualRules.interjections.includes(normalized)) type = "Interjection";
-        grammarType.textContent = type;
-      }
-
-      async function fetchSentences() {
-        const response = await fetch("sentences.json");
-        if (!response.ok) throw new Error(`Unable to load sentences.json (${response.status})`);
-        const data = await response.json();
-        if (!Array.isArray(data.sentences) || !data.sentences.length) throw new Error("sentences.json has no sentences array");
-        sentences = data.sentences;
-      }
-
-      async function useRandomSentence() {
-        try {
-          if (!sentences.length) await fetchSentences();
-          const sentence = sentences[Math.floor(Math.random() * sentences.length)];
-          sentenceInput.value = sentence;
-          renderSentence(sentence);
-          status.textContent = "Loaded a random sentence.";
-        } catch (error) {
-          status.textContent = `Could not load sample sentence: ${error.message}`;
-        }
-      }
-
-      function wireSettings() {
-        document.getElementById("setting-realtime").addEventListener("change", (e) => settings.realtime = e.target.checked);
-        document.getElementById("setting-text-color").addEventListener("change", (e) => { settings.textColor = e.target.checked; renderSentence(sentenceInput.value); });
-        document.getElementById("setting-labels").addEventListener("change", (e) => { settings.labels = e.target.checked; renderSentence(sentenceInput.value); });
-        document.getElementById("setting-curvy").addEventListener("change", (e) => { settings.curvy = e.target.checked; renderSentence(sentenceInput.value); });
-        document.getElementById("setting-natural").addEventListener("change", (e) => { settings.natural = e.target.checked; renderSentence(sentenceInput.value); });
-        document.getElementById("setting-auto-punctuate").addEventListener("change", (e) => settings.autoPunctuate = e.target.checked);
-      }
-
-      sentenceInput.addEventListener("input", () => { if (settings.realtime) renderSentence(sentenceInput.value); });
-      document.getElementById("analyze-btn").addEventListener("click", () => renderSentence(sentenceInput.value));
-      document.getElementById("punctuate-btn").addEventListener("click", () => {
-        sentenceInput.value = applyAutoPunctuation(sentenceInput.value);
-        renderSentence(sentenceInput.value);
-      });
-      document.getElementById("random-btn").addEventListener("click", useRandomSentence);
-      wordInput.addEventListener("input", checkWord);
-
-      renderLegend();
-      wireSettings();
-      useRandomSentence();
-      initVersioning({ currentVersion: CURRENT_VERSION, rootPrefix: "" });
+      function checkWord(){const w=wordInput.value.trim();if(!w)return grammarType.textContent='---';const n=normalizeWord(w);const doc=nlp(n);let t='Unknown';if(doc.has('#Pronoun'))t='Pronoun';else if(doc.has('#Verb'))t='Verb';else if(doc.has('#Noun'))t='Noun';else if(doc.has('#Adjective'))t='Adjective';else if(doc.has('#Adverb'))t='Adverb';else if(['the','a','an'].includes(n))t='Article';else if(manualRules.prepositions.includes(n))t='Preposition';else if(manualRules.conjunctions.includes(n))t='Conjunction';else if(manualRules.determiners.includes(n))t='Determiner';else if(manualRules.interjections.includes(n))t='Interjection';grammarType.textContent=t;}
+      async function fetchSentences(){const r=await fetch('sentences.json');if(!r.ok)throw new Error(`Unable to load sentences.json (${r.status})`);const d=await r.json();if(!Array.isArray(d.sentences)||!d.sentences.length)throw new Error('sentences.json has no sentences array');sentences=d.sentences;}
+      async function useRandomSentence(){try{if(!sentences.length)await fetchSentences();const s=sentences[Math.floor(Math.random()*sentences.length)];sentenceInput.value=s;renderSentence(s);status.textContent='Loaded a random sentence.';}catch(e){status.textContent=`Could not load sample sentence: ${e.message}`;}}
+      function wireSettings(){document.getElementById('setting-realtime').addEventListener('change',(e)=>settings.realtime=e.target.checked);document.getElementById('setting-text-color').addEventListener('change',(e)=>{settings.textColor=e.target.checked;renderSentence(sentenceInput.value)});document.getElementById('setting-labels').addEventListener('change',(e)=>{settings.labels=e.target.checked;renderSentence(sentenceInput.value)});document.getElementById('setting-curvy').addEventListener('change',(e)=>{settings.curvy=e.target.checked;renderSentence(sentenceInput.value)});document.getElementById('setting-natural').addEventListener('change',(e)=>{settings.natural=e.target.checked;renderSentence(sentenceInput.value)});document.getElementById('setting-auto-punctuate').addEventListener('change',(e)=>settings.autoPunctuate=e.target.checked);}
+      sentenceInput.addEventListener('input',()=>{if(settings.realtime)renderSentence(sentenceInput.value)});document.getElementById('analyze-btn').addEventListener('click',()=>renderSentence(sentenceInput.value));document.getElementById('punctuate-btn').addEventListener('click',()=>{sentenceInput.value=applyAutoPunctuation(sentenceInput.value);renderSentence(sentenceInput.value)});document.getElementById('random-btn').addEventListener('click',useRandomSentence);wordInput.addEventListener('input',checkWord);
+      renderLegend();wireSettings();useRandomSentence();initVersioning({ currentVersion: CURRENT_VERSION, rootPrefix: "" });
     </script>
   </body>
 </html>
