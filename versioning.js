@@ -37,8 +37,11 @@
     const label = document.getElementById("version-label");
     const prevBtn = document.getElementById("prev-version");
     const nextBtn = document.getElementById("next-version");
+    const openBtn = document.getElementById("version-button") || document.getElementById("history-btn");
+    const closeBtn = document.getElementById("close-modal") || document.getElementById("history-close");
 
-    label.textContent = currentVersion;
+    if (!historyContainer || !openBtn) return;
+    if (label) label.textContent = currentVersion;
     let versions = [];
 
     function getVersionPath(version) {
@@ -90,13 +93,15 @@
       });
     }
 
-    document.getElementById("version-button").addEventListener("click", () => modal.classList.add("open"));
-    document.getElementById("close-modal").addEventListener("click", () => modal.classList.remove("open"));
-    modal.addEventListener("click", (event) => {
-      if (event.target === modal) modal.classList.remove("open");
-    });
-    prevBtn.addEventListener("click", () => openAdjacent(1));
-    nextBtn.addEventListener("click", () => openAdjacent(-1));
+    if (modal) {
+      openBtn.addEventListener("click", () => modal.classList.add("open"));
+      if (closeBtn) closeBtn.addEventListener("click", () => modal.classList.remove("open"));
+      modal.addEventListener("click", (event) => {
+        if (event.target === modal) modal.classList.remove("open");
+      });
+    }
+    if (prevBtn) prevBtn.addEventListener("click", () => openAdjacent(1));
+    if (nextBtn) nextBtn.addEventListener("click", () => openAdjacent(-1));
 
     try {
       const response = await fetch(`${rootPrefix}version-history.md`);

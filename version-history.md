@@ -1,5 +1,11 @@
 # Version History
 
+## 1.3.6 - 2026-03-31
+- Restored archived-version history reliability by hardening `versioning.js` element guards and button bindings.
+- Added missing archived `1.1.0` page snapshot so changelog links no longer dead-end.
+- Added smoke tests for archived version modal open/close and `1.1.0` availability.
+- Archived `1.3.5` under `versions/1.3.5/`.
+
 ## 1.3.5 - 2026-03-31
 - Fixed popover placement so the word detail panel prefers appearing above the tapped word instead of covering it.
 - Hardened rebuild/sort placement state updates with shared helpers for tap and drop paths.

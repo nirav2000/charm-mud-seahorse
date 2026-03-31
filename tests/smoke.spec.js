@@ -55,6 +55,21 @@ test('version badge opens and closes changelog drawer', async ({ page }) => {
   await expect(drawer).not.toHaveClass(/open/);
 });
 
+test('archived page can open version history modal', async ({ page }) => {
+  await page.goto('/versions/1.1.3/index.html');
+  const versionBtn = page.locator('#version-button');
+  await expect(versionBtn).toBeVisible();
+  await versionBtn.click();
+  await expect(page.locator('#version-modal')).toHaveClass(/open/);
+  await page.locator('#close-modal').click();
+  await expect(page.locator('#version-modal')).not.toHaveClass(/open/);
+});
+
+test('missing archive 1.1.0 now exists', async ({ page }) => {
+  const response = await page.request.get('/versions/1.1.0/index.html');
+  expect(response.ok()).toBeTruthy();
+});
+
 test('rebuild exercise supports place/check/reset', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Rebuild sentence' }).click();

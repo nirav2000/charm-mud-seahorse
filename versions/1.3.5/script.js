@@ -1,5 +1,5 @@
 const state = {
-  version: "1.3.6",
+  version: "1.3.5",
   settings: { autoPunctuate: true, showLabels: true, showConnectors: true },
   sentences: [],
   parsed: [],
