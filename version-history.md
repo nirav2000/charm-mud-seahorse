@@ -1,5 +1,14 @@
 # Version History
 
+## 1.3.2 - 2026-03-31
+- Fixed Practice Studio drag/drop reliability and added clearer drag behavior wiring.
+- Removed fixed word-detail card from layout and kept contextual popover-only word guidance.
+- Added collapsible grammar glossary panel.
+- Enabled sentence token drag/drop reordering directly in the analysis canvas.
+- Updated worksheet title and simplified status copy.
+- Added product docs (`README.md`, `APP_SUMMARY.md`) for intention, scope, and design guardrails.
+- Archived `1.3.1` under `versions/1.3.1/`.
+
 ## 1.3.1 - 2026-03-31
 - Polished worksheet interactions for production-readiness: robust popover open/close state, Escape handling, and outside-click/tap dismissal.
 - Improved sentence analysis spacing, focus styles, and touch/keyboard interaction consistency for desktop + iPad layouts.

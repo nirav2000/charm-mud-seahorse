@@ -11,11 +11,11 @@
   <main class="app">
     <header class="app-bar">
       <h1>Grammar Playground</h1>
-      <button id="history-btn" class="version-badge" aria-label="Open version history">v1.3.2</button>
+      <button id="history-btn" class="version-badge" aria-label="Open version history">v1.3.1</button>
     </header>
 
     <section class="worksheet" aria-labelledby="worksheet-title">
-      <h2 id="worksheet-title">Let’s break up the sentence!</h2>
+      <h2 id="worksheet-title">Interactive worksheet sentence stage</h2>
       <div class="input-row">
         <textarea id="sentence-input" placeholder="Type a sentence..."></textarea>
         <div class="actions">
@@ -35,14 +35,13 @@
     </section>
 
     <section class="learning-grid">
+      <article class="card detail-card">
+        <h3>Word detail card</h3>
+        <div id="word-detail">Tap or hover a word to see its learning card.</div>
+      </article>
       <article class="card glossary-card">
-        <div class="collapsible-head">
-          <h3>Grammar helper glossary</h3>
-          <button id="glossary-toggle" class="btn ghost" aria-expanded="false" aria-controls="glossary-wrap">Show</button>
-        </div>
-        <div id="glossary-wrap" class="is-collapsed">
-          <div id="glossary-list"></div>
-        </div>
+        <h3>Grammar glossary</h3>
+        <div id="glossary-list"></div>
       </article>
     </section>
 

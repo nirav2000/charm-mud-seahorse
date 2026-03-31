@@ -1,5 +1,5 @@
 const state = {
-  version: "1.3.2",
+  version: "1.3.1",
   settings: { autoPunctuate: true, showLabels: true, showConnectors: true },
   sentences: [],
   parsed: [],
@@ -47,9 +47,8 @@ const el = {
   wordPopover: document.getElementById("word-popover"),
   popoverContent: document.getElementById("popover-content"),
   popoverClose: document.getElementById("popover-close"),
+  wordDetail: document.getElementById("word-detail"),
   glossaryList: document.getElementById("glossary-list"),
-  glossaryWrap: document.getElementById("glossary-wrap"),
-  glossaryToggle: document.getElementById("glossary-toggle"),
   tabButtons: () => document.querySelectorAll(".tab-btn"),
   tabPanels: () => document.querySelectorAll(".tab-panel"),
   dashboard: document.getElementById("dashboard"),
@@ -122,6 +121,7 @@ function extraExample(pos) {
 function renderWordDetail(item) {
   const defaultMsg = "Tap or hover a word to see its learning card.";
   if (!item) {
+    el.wordDetail.innerHTML = defaultMsg;
     el.popoverContent.innerHTML = defaultMsg;
     return defaultMsg;
   }
@@ -135,6 +135,7 @@ function renderWordDetail(item) {
     <p><span class="k">Common confusion:</span> ${info.mistakes}</p>
     <p><span class="k">Another example:</span> ${extraExample(item.pos)}</p>
   `;
+  el.wordDetail.innerHTML = detailHTML;
   el.popoverContent.innerHTML = detailHTML;
   return detailHTML;
 }
@@ -158,7 +159,7 @@ function renderTokens(parsed) {
   el.tokenLine.innerHTML = parsed.map((item) => {
     const isPunctLight = /[,:;]$/.test(item.word);
     return `
-      <span class="token ${state.activeToken === item.index ? "active" : ""} ${isPunctLight ? "punct-light" : ""}" data-index="${item.index}" tabindex="0" role="button" draggable="true" aria-label="Open details for ${item.word}">
+      <span class="token ${state.activeToken === item.index ? "active" : ""} ${isPunctLight ? "punct-light" : ""}" data-index="${item.index}" tabindex="0" role="button" aria-label="Open details for ${item.word}">
         <span class="word pos-${item.pos}">${item.word}</span>
         <span class="label">${item.pos}</span>
       </span>
@@ -228,27 +229,6 @@ function openPopoverForToken(idx) {
 }
 
 function wireTokenEvents() {
-  let dragIndex = null;
-  const applyReorder = (toIndex) => {
-    if (dragIndex === null || dragIndex === toIndex) return;
-    const moved = [...state.parsed];
-    const [item] = moved.splice(dragIndex, 1);
-    moved.splice(toIndex, 0, item);
-    state.parsed = moved.map((p, i) => ({ ...p, index: i }));
-    renderTokens(state.parsed);
-    requestAnimationFrame(() => {
-      renderConnectors(state.parsed);
-      wireTokenEvents();
-    });
-    closePopover();
-  };
-
-  el.tokenLine.addEventListener("dragover", (e) => e.preventDefault());
-  el.tokenLine.addEventListener("drop", (e) => {
-    e.preventDefault();
-    applyReorder(state.parsed.length - 1);
-  }, { once: true });
-
   el.tokenLine.querySelectorAll(".token").forEach((token) => {
     const idx = Number(token.dataset.index);
     const setPreview = (on) => token.classList.toggle("preview", on && idx !== state.activeToken);
@@ -267,16 +247,6 @@ function wireTokenEvents() {
     });
     token.addEventListener("mouseleave", () => setPreview(false));
     token.addEventListener("click", activate);
-    token.addEventListener("dragstart", (e) => {
-      dragIndex = idx;
-      e.dataTransfer.effectAllowed = "move";
-      e.dataTransfer.setData("text/plain", String(idx));
-    });
-    token.addEventListener("dragover", (e) => e.preventDefault());
-    token.addEventListener("drop", (e) => {
-      e.preventDefault();
-      applyReorder(idx);
-    });
     token.addEventListener("keydown", (e) => {
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
@@ -415,7 +385,7 @@ async function loadSampleSentence() {
   el.input.value = sentence;
   renderAnalysis(sentence);
   renderPractice(state.parsed);
-  el.status.textContent = 'Try touching or dragging words to explore grammar.';
+  el.status.textContent = 'Sample loaded.';
 }
 
 function openHistoryDrawer() {
@@ -457,11 +427,6 @@ async function init() {
   await syncVersionFromSource();
   el.historyBtn.textContent = `v${state.version}`;
   renderGlossary();
-  el.glossaryToggle.addEventListener("click", () => {
-    const collapsed = el.glossaryWrap.classList.toggle("is-collapsed");
-    el.glossaryToggle.textContent = collapsed ? "Show" : "Hide";
-    el.glossaryToggle.setAttribute("aria-expanded", String(!collapsed));
-  });
   renderDashboard();
   loadVersionHistory();
   loadSampleSentence();

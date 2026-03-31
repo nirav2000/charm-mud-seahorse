@@ -37,18 +37,17 @@ textarea{width:100%;min-height:96px;border:1px solid #cdd8ee;border-radius:12px;
 .token.active{box-shadow:0 0 0 2px rgba(84,110,202,.24)}
 .token:hover{transform:translateY(-1px)}
 .token.punct-light{margin-right:.2ch}
-.word{font-size:2rem;font-weight:800;line-height:1.08;padding:1px 5px;border-radius:10px;border:2px solid transparent;background:transparent}
-.token.preview .word,.token.active .word{border-color:currentColor}
+.word{font-size:2rem;font-weight:800;line-height:1.08;padding:0 2px;border-radius:6px}
 .label{font-size:.66rem;font-weight:700;color:#62739b;margin-top:3px;line-height:1.1;text-transform:capitalize;letter-spacing:.01em;white-space:nowrap}
 
-.pos-article{color:#8f7a04}.pos-noun{color:#b72d49}.pos-pronoun{color:#2e76c2}
-.pos-verb{color:#1e8f5e}.pos-adjective{color:#a83895}.pos-adverb{color:#646464}
-.pos-determiner{color:#157f70}.pos-preposition{color:#09799a}.pos-conjunction{color:#9b6b0f}
-.pos-interjection{color:#6e4ca7}.pos-unknown{color:#4f5c73}
+.pos-article{color:#8f7a04;background:#fff5c6}.pos-noun{color:#b72d49;background:#ffe5ec}.pos-pronoun{color:#2e76c2;background:#e4f2ff}
+.pos-verb{color:#1e8f5e;background:#e3fff1}.pos-adjective{color:#a83895;background:#ffe3f7}.pos-adverb{color:#646464;background:#ececec}
+.pos-determiner{color:#157f70;background:#defdf5}.pos-preposition{color:#09799a;background:#dff6ff}.pos-conjunction{color:#9b6b0f;background:#fcefc9}
+.pos-interjection{color:#6e4ca7;background:#efe4ff}.pos-unknown{color:#4f5c73;background:#edf1f8}
 
-.learning-grid{display:grid;grid-template-columns:1fr;gap:12px}
-.collapsible-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
-#glossary-wrap.is-collapsed{display:none}
+.learning-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+#word-detail .k{font-weight:700;color:#27395f}
+#word-detail p{margin:6px 0;color:#4a5b7c}
 #glossary-list{max-height:280px;overflow:auto;display:grid;gap:8px}
 .gloss-item{background:#f7f9ff;border:1px solid #dde5f7;border-radius:10px;padding:8px}
 .gloss-item h4{margin:0 0 4px;font-size:.92rem}
@@ -88,7 +87,7 @@ textarea{width:100%;min-height:96px;border:1px solid #cdd8ee;border-radius:12px;
 @media (max-width:980px){
   .input-row{grid-template-columns:1fr}
   .actions{grid-template-columns:1fr 1fr}
-  #dashboard{grid-template-columns:1fr}
+  .learning-grid,#dashboard{grid-template-columns:1fr}
   .word{font-size:1.65rem}
   .analysis-stage{padding:22px 14px 80px}
   .token{margin-bottom:18px}
