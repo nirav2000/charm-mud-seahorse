@@ -1,10 +1,3 @@
-## 1.4.0 - 2026-04-01
-- Made "Fix mistake" practice tab dynamic: the broken sentence is now generated from the currently analyzed sentence (adverb→adjective or verb agreement error), with a contextual correction shown on reveal.
-- Made "Identify phrase" practice tab dynamic and interactive: words from the analyzed sentence are displayed as clickable chips; users select a noun phrase and use Check or Reveal for feedback.
-- Added localStorage persistence for the progress dashboard: interactions survive page reloads, and a "Clear progress" button resets the stored data.
-- Archived `1.3.10` under `versions/1.3.10/`.
-- Bumped runtime/app version metadata to `1.4.0`.
-
 ## 1.3.10 - 2026-03-31
 - Improved word-popover placement logic so it never overlaps the sentence and stays on-screen by using available viewport space above/below the sentence region.
 - Added dynamic popover height clamping with internal scroll fallback when space is tight.
