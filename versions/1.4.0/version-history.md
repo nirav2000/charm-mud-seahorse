@@ -1,12 +1,3 @@
-## 1.5.0 - 2026-04-01
-- Removed all HTML5 drag-and-drop and touch-gesture reorder code from the main canvas and all practice modes; replaced with reliable click/tap-only interactions throughout.
-- Rewrote all five practice tabs from scratch: Word Order (tap chips to sequence), Grammar Quiz (one-word-at-a-time type classifier with score), Spot the Mistake (tap the error word, choose the fix from three options), Phrase Detective (tap to highlight noun phrase, check/reveal), Fill the Gap (choose the missing adj/adverb from three options).
-- Each practice tab now has a "New sentence" button that draws randomly from the sentence corpus, independent of the main analysis canvas.
-- Expanded `sentences.json` from 61 to 150 sentences covering adjective+noun phrases, adverb+verb sentences, prepositional phrases, past tense, compound conjunctions, and questions.
-- Deleted the permanently-skipped `test.fixme` drag test; replaced with four focused click-interaction tests covering Word Order, Grammar Quiz, and Fill the Gap.
-- Archived `1.4.0` under `versions/1.4.0/`.
-- Bumped runtime/app version metadata to `1.5.0`.
-
 ## 1.4.0 - 2026-04-01
 - Made "Fix mistake" practice tab dynamic: the broken sentence is now generated from the currently analyzed sentence (adverb→adjective or verb agreement error), with a contextual correction shown on reveal.
 - Made "Identify phrase" practice tab dynamic and interactive: words from the analyzed sentence are displayed as clickable chips; users select a noun phrase and use Check or Reveal for feedback.

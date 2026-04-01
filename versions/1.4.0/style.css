@@ -58,18 +58,10 @@ textarea{width:100%;min-height:96px;border:1px solid #cdd8ee;border-radius:12px;
 .tab-btn.active{background:#2f4e95;color:#fff}
 .tab-panel{display:none;padding:10px;border:1px solid #e1e8f8;border-radius:10px;background:#fbfcff}
 .tab-panel.active{display:block}
-.word-chip{display:inline-block;background:#eef3ff;border:1px solid #ccd9ff;padding:6px 9px;border-radius:8px;margin:4px;cursor:pointer;user-select:none;transition:background .15s,border-color .15s}
-.word-chip:hover{background:#e2ecff;border-color:#a8c0ff}
-.word-chip.active,.word-chip.placed{background:#dbe7ff;border-color:#97b3ff}
-.word-chip.placed{opacity:.75}
-.word-tray{min-height:48px;border:1px dashed #b8c8ef;border-radius:8px;padding:6px;margin-top:6px}
-.error-candidate{display:inline;background:#fff0f2;border:1px solid #f7b3bf;border-radius:6px;padding:2px 7px;cursor:pointer;text-decoration:underline wavy #b72d49;font-weight:700;color:#b72d49}
-.error-candidate:hover{background:#ffe0e5}
-.fix-word{display:inline;padding:2px 5px;border-radius:6px;cursor:pointer}
-.fix-word:hover{background:#f4f6fc}
-.big-word{font-size:2rem;font-weight:800;text-align:center;padding:14px 10px;color:var(--text)}
-.gap-display{font-size:1.25rem;font-weight:600;letter-spacing:.02em;text-align:center;padding:12px 0}
-.quiz-summary{text-align:center;padding:12px 0}
+.draggable{display:inline-block;background:#eef3ff;border:1px solid #ccd9ff;padding:6px 9px;border-radius:8px;margin:4px;cursor:grab}
+.draggable.active{background:#dbe7ff;border-color:#97b3ff}
+.dropzone{min-height:48px;border:1px dashed #b8c8ef;border-radius:8px;padding:6px;margin-top:6px}
+.bin{min-height:52px;border:1px dashed #b8c8ef;border-radius:8px;padding:6px;margin:6px 0}
 .feedback{font-size:.86rem;color:#4f5f82;margin-top:6px}
 
 #dashboard{display:grid;grid-template-columns:1fr 1fr;gap:10px}

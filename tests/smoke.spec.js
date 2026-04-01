@@ -70,36 +70,39 @@ test('missing archive 1.1.0 now exists', async ({ page }) => {
   expect(response.ok()).toBeTruthy();
 });
 
-test('rebuild exercise supports place/check/reset', async ({ page }) => {
+test('word order: tap chip to place, check, reset, new sentence', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Rebuild sentence' }).click();
-  const firstChip = page.locator('#rebuild-bank .draggable').first();
+  await page.getByRole('button', { name: 'Word Order' }).click();
+  const firstChip = page.locator('#rebuild-bank .word-chip').first();
   await firstChip.click();
-  await expect(page.locator('#rebuild-zone .draggable')).toHaveCount(1);
+  await expect(page.locator('#rebuild-built .word-chip')).toHaveCount(1);
   await page.locator('[data-action="rebuild-check"]').click();
-  await expect(page.locator('#rebuild-feedback')).not.toHaveText('');
+  await expect(page.locator('#rebuild-feedback')).not.toHaveText('Build the sentence in the correct order.');
   await page.locator('[data-action="rebuild-reset"]').click();
-  await expect(page.locator('#rebuild-zone .draggable')).toHaveCount(0);
+  await expect(page.locator('#rebuild-built .word-chip')).toHaveCount(0);
 });
 
-test('sort exercise supports tap-select tap-place and check/reset', async ({ page }) => {
+test('word order: tap placed chip to return it to bank', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Sort by grammar' }).click();
-  await page.locator('#sort-bank .draggable').first().click();
-  await page.locator('.bin[data-bin="noun"]').click();
-  await expect(page.locator('.bin[data-bin="noun"] span')).toHaveCount(1);
-  await page.locator('[data-action="sort-check"]').click();
-  await expect(page.locator('#sort-feedback')).toContainText('You placed');
-  await page.locator('[data-action="sort-reset"]').click();
-  await expect(page.locator('.bin[data-bin="noun"] span')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Word Order' }).click();
+  await page.locator('#rebuild-bank .word-chip').first().click();
+  await expect(page.locator('#rebuild-built .word-chip')).toHaveCount(1);
+  await page.locator('#rebuild-built .word-chip').first().click();
+  await expect(page.locator('#rebuild-built .word-chip')).toHaveCount(0);
 });
 
-test('desktop drag path still works for rebuild', async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== 'desktop-chromium', 'drag path validated once in desktop project');
-  test.fixme(true, 'Desktop browser-native drag/drop is flaky in headless CI; tap-place path is the blocker coverage.');
+test('grammar quiz: choose a word type and get feedback', async ({ page }) => {
   await page.goto('/');
-  const source = page.locator('#rebuild-bank .draggable').first();
-  const target = page.locator('#rebuild-zone');
-  await source.dragTo(target);
-  await expect(page.locator('#rebuild-zone .draggable')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Grammar Quiz' }).click();
+  await expect(page.locator('#quiz-word-display')).toBeVisible();
+  await page.locator('#quiz-choices button').first().click();
+  await expect(page.locator('#quiz-feedback')).not.toHaveText('');
+});
+
+test('fill the gap: choose an answer and get feedback', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Fill the Gap' }).click();
+  const choiceBtn = page.locator('[data-gap-choice]').first();
+  await choiceBtn.click();
+  await expect(page.locator('#compare-feedback')).not.toHaveText('Pick the best word for the gap.');
 });

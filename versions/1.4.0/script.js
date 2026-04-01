@@ -1,5 +1,5 @@
 const state = {
-  version: "1.5.0",
+  version: "1.4.0",
   settings: { autoPunctuate: true, showLabels: true, showConnectors: true },
   sentences: [],
   parsed: [],
@@ -14,6 +14,7 @@ const state = {
     historyOpen: false
   }
 };
+let tokenLineListenersBound = false;
 
 const glossary = {
   noun: { def: "A naming word.", does: "Names people, places, things, or ideas.", spot: "Can often follow an article like ‘the’.", mistakes: "Mixing nouns with verbs.", links: "pronoun, adjective" },
@@ -159,7 +160,7 @@ function renderTokens(parsed) {
   el.tokenLine.innerHTML = parsed.map((item) => {
     const isPunctLight = /[,:;]$/.test(item.word);
     return `
-      <span class="token ${state.activeToken === item.index ? "active" : ""} ${isPunctLight ? "punct-light" : ""}" data-index="${item.index}" tabindex="0" role="button" aria-label="Open details for ${item.word}">
+      <span class="token ${state.activeToken === item.index ? "active" : ""} ${isPunctLight ? "punct-light" : ""}" data-index="${item.index}" tabindex="0" role="button" draggable="true" aria-label="Open details for ${item.word}">
         <span class="word pos-${item.pos}">${item.word}</span>
         <span class="label">${item.pos}</span>
       </span>
@@ -252,10 +253,40 @@ function openPopoverForToken(idx) {
 }
 
 function wireTokenEvents() {
+  let dragIndex = null;
+  const applyReorder = (toIndex) => {
+    if (dragIndex === null || dragIndex === toIndex) return;
+    const moved = [...state.parsed];
+    const [item] = moved.splice(dragIndex, 1);
+    moved.splice(toIndex, 0, item);
+    state.parsed = moved.map((p, i) => ({ ...p, index: i }));
+    renderTokens(state.parsed);
+    requestAnimationFrame(() => {
+      renderConnectors(state.parsed);
+      wireTokenEvents();
+    });
+    closePopover();
+  };
+
+  if (!tokenLineListenersBound) {
+    el.tokenLine.addEventListener("dragover", (e) => e.preventDefault());
+    el.tokenLine.addEventListener("drop", (e) => {
+      e.preventDefault();
+      applyReorder(state.parsed.length - 1);
+    });
+    tokenLineListenersBound = true;
+  }
+
+  let suppressNextTap = false;
+
   el.tokenLine.querySelectorAll(".token").forEach((token) => {
     const idx = Number(token.dataset.index);
     const setPreview = (on) => token.classList.toggle("preview", on && idx !== state.activeToken);
     const activate = () => {
+      if (suppressNextTap) {
+        suppressNextTap = false;
+        return;
+      }
       state.activeToken = idx;
       renderTokens(state.parsed);
       requestAnimationFrame(() => renderConnectors(state.parsed));
@@ -264,14 +295,57 @@ function wireTokenEvents() {
       trackInteraction(state.parsed[idx].pos);
       wireTokenEvents();
     };
+
     token.addEventListener("mouseenter", () => {
       if (window.matchMedia("(hover: hover)").matches) setPreview(true);
     });
     token.addEventListener("mouseleave", () => setPreview(false));
     token.addEventListener("click", activate);
-    token.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); activate(); }
+    token.addEventListener("dragstart", (e) => {
+      dragIndex = idx;
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", String(idx));
     });
+    token.addEventListener("dragover", (e) => e.preventDefault());
+    token.addEventListener("drop", (e) => {
+      e.preventDefault();
+      applyReorder(idx);
+    });
+    token.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        activate();
+      }
+    });
+    let touchState = null;
+    token.addEventListener("touchstart", (e) => {
+      const t = e.changedTouches[0];
+      touchState = { startX: t.clientX, startY: t.clientY, dragging: false };
+    }, { passive: true });
+
+    token.addEventListener("touchmove", (e) => {
+      if (!touchState) return;
+      const t = e.changedTouches[0];
+      const moved = Math.hypot(t.clientX - touchState.startX, t.clientY - touchState.startY);
+      if (moved > 12) {
+        touchState.dragging = true;
+        e.preventDefault();
+      }
+    }, { passive: false });
+
+    token.addEventListener("touchend", (e) => {
+      if (!touchState?.dragging) {
+        touchState = null;
+        return;
+      }
+      const t = e.changedTouches[0];
+      const target = document.elementFromPoint(t.clientX, t.clientY)?.closest(".token");
+      const toIndex = target ? Number(target.dataset.index) : state.parsed.length - 1;
+      applyReorder(toIndex);
+      suppressNextTap = true;
+      touchState = null;
+      e.preventDefault();
+    }, { passive: false });
   });
 }
 
@@ -343,149 +417,66 @@ function removeFirst(arr, value) {
 
 function initPracticeState(parsed) {
   state.practice = {
-    tokens: [...parsed],
-    rebuildBank: shuffle(parsed.map(p => p.word)),
-    rebuildBuilt: [],
-    quizQueue: [...parsed],
-    quizIndex: 0,
-    quizScore: 0,
-    fixData: null,
-    phraseNounPhraseIndices: [],
-    gapData: null
+    selectedWord: null,
+    dragWord: null,
+    rebuildTarget: [],
+    rebuildBank: shuffle(parsed.map((p) => p.word)),
+    sortBank: parsed.map((p) => ({ id: p.index, word: p.word, pos: p.pos })),
+    sortBins: { noun: [], verb: [], adjective: [], adverb: [], other: [] },
+    fixAnswer: null,
+    phraseNounPhraseIndices: []
   };
 }
 
-function loadPracticeSentence(tabId) {
-  if (!state.sentences.length) return;
-  const current = state.parsed.map(p => p.word).join(' ');
-  const pool = state.sentences.filter(s => s !== current);
-  const src = pool.length ? pool : state.sentences;
-  const raw = src[Math.floor(Math.random() * src.length)];
-  const sentence = state.settings.autoPunctuate ? autoPunctuate(raw) : raw.trim();
-  const tokens = parseSentence(sentence);
-  state.practice.tokens = tokens;
-  if (tabId === 'rebuild') {
-    state.practice.rebuildBank = shuffle(tokens.map(p => p.word));
-    state.practice.rebuildBuilt = [];
-    renderWordOrderTab();
-  } else if (tabId === 'sort') {
-    state.practice.quizQueue = [...tokens];
-    state.practice.quizIndex = 0;
-    state.practice.quizScore = 0;
-    renderGrammarQuizTab();
-  } else if (tabId === 'fix') {
-    state.practice.fixData = generateFixData(tokens);
-    renderSpotMistakeTab();
-  } else if (tabId === 'phrase') {
-    state.practice.phraseNounPhraseIndices = getNounPhraseIndices(tokens);
-    renderPhraseDetectiveTab();
-  } else if (tabId === 'compare') {
-    state.practice.gapData = generateGapExercise(tokens);
-    renderFillGapTab();
-  }
-}
-
-function renderWordOrderTab() {
+function renderRebuildTab() {
+  const target = state.practice.rebuildTarget.join(" ");
   document.getElementById("tab-rebuild").innerHTML = `
-    <p>Tap words in the correct order to rebuild the sentence.</p>
-    <div id="rebuild-bank">${state.practice.rebuildBank.map(w => `<span class="word-chip" data-practice="rebuild-bank" data-word="${w}">${w}</span>`).join(' ')}</div>
-    <div id="rebuild-built" class="word-tray">${state.practice.rebuildBuilt.map(w => `<span class="word-chip placed" data-practice="rebuild-built" data-word="${w}">${w}</span>`).join(' ')}</div>
+    <p>Tap words to move them into order (drag also works on desktop).</p>
+    <div id="rebuild-bank">${state.practice.rebuildBank.map((w)=>`<span class="draggable" draggable="true" data-practice="rebuild-bank" data-word="${w}">${w}</span>`).join("")}</div>
+    <div id="rebuild-zone" class="dropzone">${state.practice.rebuildTarget.map((w)=>`<span class="draggable" data-practice="placed-word" data-word="${w}">${w}</span>`).join("")}</div>
     <div class="actions">
       <button class="btn secondary" data-action="rebuild-check">Check</button>
       <button class="btn ghost" data-action="rebuild-reset">Reset</button>
-      <button class="btn ghost" data-action="rebuild-next">New sentence</button>
     </div>
-    <div class="feedback" id="rebuild-feedback">Build the sentence in the correct order.</div>
+    <div class="feedback" id="rebuild-feedback">${target ? "" : "Build the sentence in the correct order."}</div>
   `;
+  wirePracticeDropZones();
 }
 
-function renderGrammarQuizTab() {
-  const queue = state.practice.quizQueue;
-  const idx = state.practice.quizIndex;
-  if (idx >= queue.length) {
-    const score = state.practice.quizScore;
-    const total = queue.length;
-    document.getElementById("tab-sort").innerHTML = `
-      <div class="quiz-summary">
-        <p class="big-word">${score === total ? '🎉' : score >= Math.ceil(total / 2) ? '👍' : '💪'}</p>
-        <p><strong>${score} out of ${total}</strong> correct!</p>
-        <p>${score === total ? 'Perfect score!' : 'Keep practising — grammar takes time.'}</p>
-      </div>
-      <button class="btn secondary" data-action="sort-next">New sentence</button>
-    `;
-    return;
-  }
-  const token = queue[idx];
+function renderSortTab() {
+  const bins = ["noun","verb","adjective","adverb","other"];
   document.getElementById("tab-sort").innerHTML = `
-    <div id="quiz-progress" class="feedback">Word ${idx + 1} of ${queue.length} &nbsp;·&nbsp; Score: ${state.practice.quizScore}</div>
-    <p>What type of word is this?</p>
-    <div id="quiz-word-display" class="big-word">${token.word}</div>
-    <div id="quiz-choices">
-      <button class="btn secondary" data-choice="verb">verb</button>
-      <button class="btn secondary" data-choice="noun">noun</button>
-      <button class="btn secondary" data-choice="adjective">adjective</button>
-      <button class="btn secondary" data-choice="adverb">adverb</button>
-      <button class="btn secondary" data-choice="other">other</button>
+    <p>Tap a word, then tap a grammar bin (drag also works on desktop).</p>
+    ${bins.map((b)=>`<div class="bin" data-bin="${b}"><strong>${b}</strong> ${state.practice.sortBins[b].map((entry) => `<span>${entry.word}</span>`).join("")}</div>`).join("")}
+    <div id="sort-bank">${state.practice.sortBank.map((p)=>`<span class="draggable" draggable="true" data-practice="sort-bank" data-id="${p.id}" data-word="${p.word}" data-pos="${p.pos}">${p.word}</span>`).join("")}</div>
+    <div class="actions">
+      <button class="btn secondary" data-action="sort-check">Check</button>
+      <button class="btn ghost" data-action="sort-reset">Reset</button>
     </div>
-    <div class="feedback" id="quiz-feedback"></div>
+    <div class="feedback" id="sort-feedback">Sort each word into the best bin.</div>
   `;
+  wirePracticeDropZones();
 }
 
-const fixDistractorPool = {
-  adverb: ['slowly', 'quickly', 'gently', 'easily', 'softly'],
-  verb: ['runs', 'walks', 'plays', 'reads', 'eats']
-};
-
-function generateFixData(parsed) {
-  // Strategy 1: adverb → adjective stem (drop -ly)
+function generateFixExercise(parsed) {
+  // Strategy 1: swap an adverb ending in -ly for its adjective stem
   const adverbToken = parsed.find(p => p.pos === 'adverb' && /ly$/i.test(p.word) && p.word.length > 3);
   if (adverbToken) {
-    const correct = adverbToken.word;
     const adjForm = adverbToken.word.replace(/ly$/i, '');
-    const extra = fixDistractorPool.adverb.filter(w => w !== correct && w !== adjForm).slice(0, 1);
-    const brokenTokens = parsed.map(p => p.index === adverbToken.index ? { ...p, word: adjForm } : p);
-    return { tokens: brokenTokens, errorIndex: adverbToken.index, correct,
-      choices: shuffle([correct, adjForm, ...extra]),
-      explanation: `"${adjForm}" is an adjective — you need the adverb "${correct}" to describe the verb.` };
+    const broken = parsed.map(p => p.index === adverbToken.index ? adjForm : p.word).join(' ');
+    const fixed = parsed.map(p => p.word).join(' ');
+    return { broken, answer: `✅ Correct: "${fixed}" — "${adjForm}" is an adjective; use the adverb "${adverbToken.word}".` };
   }
-  // Strategy 2: verb agreement (drop -s)
+  // Strategy 2: drop the -s from a third-person singular verb
   const verbToken = parsed.find(p => p.pos === 'verb' && /[^aeiou]s$/i.test(p.word) && p.word.length > 2);
   if (verbToken) {
-    const correct = verbToken.word;
     const base = verbToken.word.slice(0, -1);
-    const extra = fixDistractorPool.verb.filter(w => w !== correct && w !== base).slice(0, 1);
-    const brokenTokens = parsed.map(p => p.index === verbToken.index ? { ...p, word: base } : p);
-    return { tokens: brokenTokens, errorIndex: verbToken.index, correct,
-      choices: shuffle([correct, base, ...extra]),
-      explanation: `"${base}" is the base form — use "${correct}" to agree with the subject.` };
+    const broken = parsed.map(p => p.index === verbToken.index ? base : p.word).join(' ');
+    const fixed = parsed.map(p => p.word).join(' ');
+    return { broken, answer: `✅ Correct: "${fixed}" — "${base}" is base form; use "${verbToken.word}" to agree with the subject.` };
   }
-  // Fallback
-  const fallbackTokens = [
-    { index: 0, word: 'She', pos: 'pronoun' }, { index: 1, word: 'run', pos: 'verb' },
-    { index: 2, word: 'very', pos: 'adverb' }, { index: 3, word: 'quick.', pos: 'adjective' }
-  ];
-  return { tokens: fallbackTokens, errorIndex: 3, correct: 'quickly',
-    choices: shuffle(['quickly', 'quick', 'quicker']),
-    explanation: '"quick" is an adjective — use "quickly" (an adverb) to describe how she runs.' };
-}
-
-function renderSpotMistakeTab() {
-  const fd = state.practice.fixData;
-  if (!fd) return;
-  document.getElementById("tab-fix").innerHTML = `
-    <p>One word is wrong. Tap the <strong style="color:#b72d49">underlined word</strong> to see fix options.</p>
-    <div id="fix-sentence">
-      ${fd.tokens.map(t => t.index === fd.errorIndex
-        ? `<span class="error-candidate">${t.word}</span>`
-        : `<span class="fix-word">${t.word}</span>`
-      ).join(' ')}
-    </div>
-    <div id="fix-choices-wrap" style="display:none;margin-top:8px">
-      ${fd.choices.map(c => `<button class="btn secondary" data-fix-choice="${c}">${c}</button>`).join(' ')}
-    </div>
-    <div class="feedback" id="fix-feedback">Find the mistake and tap it.</div>
-    <button class="btn ghost" data-action="fix-next" style="margin-top:8px">New sentence</button>
-  `;
+  // Fallback to static example when the parsed sentence offers no suitable target
+  return { broken: 'She run very quick.', answer: '✅ Correct: "She runs very quickly."' };
 }
 
 function getNounPhraseIndices(parsed) {
@@ -522,71 +513,37 @@ function buildNounPhraseLabels(parsed) {
   return phrases;
 }
 
-function renderPhraseDetectiveTab() {
-  const tokens = state.practice.tokens;
-  state.practice.phraseNounPhraseIndices = getNounPhraseIndices(tokens);
-  const nounPhrases = buildNounPhraseLabels(tokens);
+function renderPhraseTab(parsed) {
+  const nounPhrases = buildNounPhraseLabels(parsed);
+  state.practice.phraseNounPhraseIndices = getNounPhraseIndices(parsed);
   document.getElementById("tab-phrase").innerHTML = `
-    <p>Tap all the words that form a <strong>noun phrase</strong>.</p>
+    <p>Click the words you think form a <strong>noun phrase</strong>. Then check your answer.</p>
     <div id="phrase-words">
-      ${tokens.map(p => `<span class="word-chip phrase-word" data-index="${p.index}" data-pos="${p.pos}">${p.word}</span>`).join(' ')}
+      ${parsed.map(p => `<span class="draggable phrase-word" data-index="${p.index}" data-pos="${p.pos}">${p.word}</span>`).join(' ')}
     </div>
     <div class="actions">
       <button class="btn secondary" data-action="phrase-check">Check</button>
       <button class="btn ghost" data-action="phrase-reveal">Reveal</button>
-      <button class="btn ghost" data-action="phrase-next">New sentence</button>
     </div>
-    <div class="feedback" id="phrase-feedback">${nounPhrases.length ? 'Select the words that make up a noun phrase.' : 'Click Reveal to highlight grammar phrases.'}</div>
-  `;
-}
-
-const gapDistractorPool = {
-  adverb: ['slowly', 'quickly', 'gently', 'quietly', 'carefully', 'easily'],
-  adjective: ['slow', 'quick', 'gentle', 'quiet', 'careful', 'easy', 'small', 'bright', 'tall', 'heavy']
-};
-
-function generateGapExercise(parsed) {
-  const target = parsed.find(p => p.pos === 'adjective') || parsed.find(p => p.pos === 'adverb');
-  if (target) {
-    const answer = target.word;
-    const before = parsed.slice(0, target.index).map(p => p.word).join(' ');
-    const after = parsed.slice(target.index + 1).map(p => p.word).join(' ');
-    const pool = target.pos === 'adjective'
-      ? gapDistractorPool.adverb.filter(w => w !== answer)
-      : gapDistractorPool.adjective.filter(w => w !== answer);
-    const distractors = shuffle(pool).slice(0, 2);
-    return { before, after, answer, choices: shuffle([answer, ...distractors]),
-      explanation: `"${answer}" is ${target.pos === 'adjective' ? 'an adjective describing the noun' : 'an adverb modifying the verb'}.` };
-  }
-  return { before: 'She sings', after: 'on stage.', answer: 'beautifully',
-    choices: shuffle(['beautifully', 'beautiful', 'quickly']),
-    explanation: '"beautifully" is an adverb — it describes how she sings.' };
-}
-
-function renderFillGapTab() {
-  const gd = state.practice.gapData;
-  if (!gd) return;
-  const sentence = [gd.before, '___', gd.after].filter(Boolean).join(' ');
-  document.getElementById("tab-compare").innerHTML = `
-    <p>Choose the word that belongs in the gap:</p>
-    <p id="gap-sentence" class="gap-display">"${sentence}"</p>
-    <div id="gap-choices">
-      ${gd.choices.map(c => `<button class="btn secondary" data-gap-choice="${c}">${c}</button>`).join(' ')}
-    </div>
-    <div class="feedback" id="compare-feedback">Pick the best word for the gap.</div>
-    <button class="btn ghost" data-action="compare-next" style="margin-top:8px">New sentence</button>
+    <div class="feedback" id="phrase-feedback">${nounPhrases.length ? 'Select words that make up a noun phrase.' : 'Click Reveal to highlight grammar phrases.'}</div>
   `;
 }
 
 function renderPractice(parsed) {
   initPracticeState(parsed);
-  renderWordOrderTab();
-  renderGrammarQuizTab();
-  state.practice.fixData = generateFixData(parsed);
-  renderSpotMistakeTab();
-  renderPhraseDetectiveTab();
-  state.practice.gapData = generateGapExercise(parsed);
-  renderFillGapTab();
+  renderRebuildTab();
+  renderSortTab();
+
+  // Fix mistake — generated from the analyzed sentence
+  const fixEx = generateFixExercise(parsed);
+  state.practice.fixAnswer = fixEx.answer;
+  document.getElementById("tab-fix").innerHTML = `<p>Fix this sentence: <strong>${fixEx.broken}</strong></p><button class="btn secondary" id="fix-answer">Show correction</button><div class="feedback" id="fix-feedback"></div>`;
+
+  // Identify phrase — interactive, derived from parsed tokens
+  renderPhraseTab(parsed);
+
+  // Compare
+  document.getElementById("tab-compare").innerHTML = `<p>Choose the correct word: "She sings ____"</p><button class="btn secondary" data-choice="beautiful">beautiful</button> <button class="btn secondary" data-choice="beautifully">beautifully</button><div class="feedback" id="compare-feedback"></div>`;
 }
 
 async function loadSampleSentence() {
@@ -599,7 +556,7 @@ async function loadSampleSentence() {
   el.input.value = sentence;
   renderAnalysis(sentence);
   renderPractice(state.parsed);
-  el.status.textContent = 'Tap any word to explore its grammar details.';
+  el.status.textContent = 'Try touching or dragging words to explore grammar.';
 }
 
 function openHistoryDrawer() {
@@ -696,129 +653,180 @@ async function init() {
   }, { passive: true });
 }
 
+function checkRebuild() {
+  const built = state.practice.rebuildTarget.join(" ");
+  const actual = state.parsed.map((p) => p.word).join(" ");
+  document.getElementById("rebuild-feedback").textContent = built === actual ? "✅ Great ordering!" : "Keep going — compare with the original sentence.";
+}
+
+function resetRebuild() {
+  state.practice.rebuildTarget = [];
+  state.practice.rebuildBank = shuffle(state.parsed.map((p) => p.word));
+  renderRebuildTab();
+}
+
+function checkSort() {
+  let correct = 0;
+  const total = state.parsed.length;
+  Object.entries(state.practice.sortBins).forEach(([bin, entries]) => {
+    entries.forEach((entry) => {
+      const item = state.parsed.find((p) => p.index === entry.id);
+      const expected = ["noun","verb","adjective","adverb"].includes(item?.pos) ? item.pos : "other";
+      if (bin === expected) correct += 1;
+    });
+  });
+  document.getElementById("sort-feedback").textContent = `You placed ${correct}/${total} words in the best bin.`;
+}
+
+function resetSort() {
+  state.practice.sortBank = state.parsed.map((p) => ({ id: p.index, word: p.word, pos: p.pos }));
+  state.practice.sortBins = { noun: [], verb: [], adjective: [], adverb: [], other: [] };
+  state.practice.selectedWord = null;
+  renderSortTab();
+}
+
 function initPracticeInteractions() {
+  let dragPayload = null;
+  const extractSortChipEntry = (chip) => {
+    const id = Number(chip?.dataset.id);
+    if (!Number.isInteger(id)) return null;
+    return { id, word: chip.dataset.word, pos: chip.dataset.pos };
+  };
+  const placeIntoRebuild = (word) => {
+    if (!state.practice.rebuildBank.includes(word)) return;
+    removeFirst(state.practice.rebuildBank, word);
+    state.practice.rebuildTarget.push(word);
+    renderRebuildTab();
+  };
+  const placeIntoSortBin = (id, binName) => {
+    const entry = state.practice.sortBank.find((p) => p.id === id);
+    if (!entry) return;
+    state.practice.sortBank = state.practice.sortBank.filter((p) => p.id !== id);
+    state.practice.sortBins[binName].push(entry);
+    renderSortTab();
+  };
+
+  el.practiceCard.addEventListener("dragstart", (e) => {
+    const chip = e.target.closest(".draggable[data-word]");
+    if (!chip) return;
+    const sortEntry = chip.dataset.practice === "sort-bank" ? extractSortChipEntry(chip) : null;
+    dragPayload = { word: chip.dataset.word, pos: chip.dataset.pos, source: chip.dataset.practice, id: sortEntry?.id ?? null };
+    state.practice.dragWord = chip.dataset.word;
+    e.dataTransfer.effectAllowed = "copyMove";
+    e.dataTransfer.setData("text/plain", chip.dataset.word);
+    if (sortEntry) e.dataTransfer.setData("application/json", JSON.stringify(sortEntry));
+  });
+  el.practiceCard.addEventListener("dragover", (e) => {
+    const targetEl = e.target.nodeType === 1 ? e.target : e.target.parentElement;
+    if (targetEl?.closest(".bin, #rebuild-zone")) e.preventDefault();
+  });
+  el.practiceCard.addEventListener("drop", (e) => {
+    const targetEl = e.target.nodeType === 1 ? e.target : e.target.parentElement;
+    const targetBin = targetEl?.closest(".bin");
+    const rebuildZone = targetEl?.closest("#rebuild-zone");
+    if (!targetBin && !rebuildZone) return;
+    e.preventDefault();
+    const droppedSortEntry = (() => {
+      if (Number.isInteger(dragPayload?.id)) return { id: dragPayload.id };
+      try {
+        const fromTransfer = JSON.parse(e.dataTransfer.getData("application/json"));
+        if (Number.isInteger(fromTransfer?.id)) return { id: fromTransfer.id };
+      } catch (_) {}
+      return null;
+    })();
+    const draggedWord = dragPayload?.word || state.practice.dragWord || e.dataTransfer.getData("text/plain");
+    if (!draggedWord && !droppedSortEntry) return;
+    if (rebuildZone) {
+      placeIntoRebuild(draggedWord);
+    }
+    if (targetBin) {
+      const targetId = droppedSortEntry?.id;
+      if (Number.isInteger(targetId)) placeIntoSortBin(targetId, targetBin.dataset.bin);
+    }
+    dragPayload = null;
+    state.practice.dragWord = null;
+  });
+
   el.practiceCard.addEventListener("click", (e) => {
+    const chip = e.target.closest(".draggable[data-word]");
+    const bin = e.target.closest(".bin");
     const action = e.target.closest("[data-action]")?.dataset.action;
-    const chip = e.target.closest(".word-chip");
+    const choice = e.target.closest("[data-choice]")?.dataset.choice;
 
-    // --- Word Order ---
-    if (action === "rebuild-check") {
-      const built = state.practice.rebuildBuilt.join(" ");
-      const actual = state.practice.tokens.map(p => p.word).join(" ");
-      document.getElementById("rebuild-feedback").textContent =
-        built === actual ? "✅ Perfect order!" : "Not quite — try again or reset.";
-      return;
-    }
-    if (action === "rebuild-reset") {
-      state.practice.rebuildBank = shuffle(state.practice.tokens.map(p => p.word));
-      state.practice.rebuildBuilt = [];
-      renderWordOrderTab();
-      return;
-    }
-    if (action === "rebuild-next") { loadPracticeSentence("rebuild"); return; }
-    if (chip && chip.dataset.practice === "rebuild-bank") {
-      const word = chip.dataset.word;
-      removeFirst(state.practice.rebuildBank, word);
-      state.practice.rebuildBuilt.push(word);
-      renderWordOrderTab();
-      return;
-    }
-    if (chip && chip.dataset.practice === "rebuild-built") {
-      const word = chip.dataset.word;
-      const i = state.practice.rebuildBuilt.lastIndexOf(word);
-      if (i > -1) state.practice.rebuildBuilt.splice(i, 1);
-      state.practice.rebuildBank.push(word);
-      renderWordOrderTab();
-      return;
-    }
+    if (action === "rebuild-check") return checkRebuild();
+    if (action === "rebuild-reset") return resetRebuild();
+    if (action === "sort-check") return checkSort();
+    if (action === "sort-reset") return resetSort();
 
-    // --- Grammar Quiz ---
-    const quizChoice = e.target.closest("[data-choice]")?.dataset.choice;
-    if (quizChoice) {
-      const token = state.practice.quizQueue[state.practice.quizIndex];
-      if (!token) return;
-      const posGroup = ['article','determiner','preposition','conjunction','interjection','pronoun','unknown'].includes(token.pos) ? 'other' : token.pos;
-      const correct = quizChoice === posGroup;
-      if (correct) state.practice.quizScore++;
-      const fb = document.getElementById("quiz-feedback");
-      if (fb) fb.textContent = correct
-        ? `✅ Yes! "${token.word}" is a ${token.pos}.`
-        : `❌ "${token.word}" is a ${token.pos} — counted as "${posGroup}".`;
-      document.querySelectorAll("#quiz-choices button").forEach(b => b.disabled = true);
-      setTimeout(() => { state.practice.quizIndex++; renderGrammarQuizTab(); }, 1400);
+    if (e.target.id === "fix-answer") {
+      document.getElementById("fix-feedback").textContent = state.practice.fixAnswer || '✅ Correct: "She runs very quickly."';
       return;
     }
-    if (action === "sort-next") { loadPracticeSentence("sort"); return; }
-
-    // --- Spot the Mistake ---
-    if (e.target.closest(".error-candidate")) {
-      document.getElementById("fix-choices-wrap").style.display = "block";
-      document.getElementById("fix-feedback").textContent = "Choose the correct replacement:";
-      return;
-    }
-    if (e.target.closest(".fix-word")) {
-      document.getElementById("fix-feedback").textContent = "That word is fine — look more carefully.";
-      return;
-    }
-    const fixChoice = e.target.closest("[data-fix-choice]")?.dataset.fixChoice;
-    if (fixChoice !== undefined) {
-      const fd = state.practice.fixData;
-      const correct = fixChoice === fd.correct;
-      document.getElementById("fix-feedback").textContent = correct
-        ? `✅ Correct! ${fd.explanation}`
-        : `❌ Not quite — the answer is "${fd.correct}". ${fd.explanation}`;
-      document.querySelectorAll("[data-fix-choice]").forEach(b => b.disabled = true);
-      return;
-    }
-    if (action === "fix-next") { loadPracticeSentence("fix"); return; }
-
-    // --- Phrase Detective ---
-    const phraseWord = e.target.closest(".phrase-word");
-    if (phraseWord) { phraseWord.classList.toggle("active"); return; }
     if (action === "phrase-check") {
-      const selected = [...document.querySelectorAll(".phrase-word.active")];
+      const selected = [...document.querySelectorAll('.phrase-word.active')];
       if (!selected.length) {
-        document.getElementById("phrase-feedback").textContent = "Tap some words first, then check.";
+        document.getElementById("phrase-feedback").textContent = 'Select some words first, then check.';
         return;
       }
       const selectedIndices = selected.map(el => Number(el.dataset.index));
       const expected = state.practice.phraseNounPhraseIndices;
-      const hasNoun = selectedIndices.some(i => {
-        const t = state.practice.tokens.find(p => p.index === i);
+      const correct = expected.length > 0 && selectedIndices.every(i => expected.includes(i)) && selectedIndices.some(i => {
+        const t = state.parsed.find(p => p.index === i);
         return t && (t.pos === 'noun' || t.pos === 'pronoun');
       });
-      const allInPhrase = expected.length > 0 && selectedIndices.every(i => expected.includes(i));
-      document.getElementById("phrase-feedback").textContent =
-        expected.length === 0 ? "No clear noun phrase here — try Reveal."
-        : allInPhrase && hasNoun ? "✅ That's a noun phrase!"
-        : "❌ Not quite — a noun phrase needs at least a noun. Try Reveal.";
+      document.getElementById("phrase-feedback").textContent = correct
+        ? '✅ That\'s a noun phrase!'
+        : expected.length === 0
+          ? 'No clear noun phrase found — try Reveal.'
+          : '❌ Not quite — a noun phrase needs at least one noun. Try again or use Reveal.';
       return;
     }
     if (action === "phrase-reveal") {
       const expected = state.practice.phraseNounPhraseIndices;
-      document.querySelectorAll(".phrase-word").forEach(el => {
-        el.classList.toggle("active", expected.includes(Number(el.dataset.index)));
+      document.querySelectorAll('.phrase-word').forEach(el => {
+        el.classList.toggle('active', expected.includes(Number(el.dataset.index)));
       });
-      const labels = buildNounPhraseLabels(state.practice.tokens);
+      const labels = buildNounPhraseLabels(state.parsed);
       document.getElementById("phrase-feedback").textContent = labels.length
         ? `✅ Noun phrase(s): "${labels.join('", "')}"`
-        : "✅ No clear noun phrase in this sentence.";
+        : '✅ No clear noun phrase found in this sentence.';
       return;
     }
-    if (action === "phrase-next") { loadPracticeSentence("phrase"); return; }
+    const phraseWord = e.target.closest('.phrase-word');
+    if (phraseWord) {
+      phraseWord.classList.toggle('active');
+      return;
+    }
+    if (choice) {
+      document.getElementById('compare-feedback').textContent = choice === 'beautifully' ? '✅ Yes! Adverb modifies sings.' : '❌ Try again. You need an adverb.';
+      return;
+    }
 
-    // --- Fill the Gap ---
-    const gapChoice = e.target.closest("[data-gap-choice]")?.dataset.gapChoice;
-    if (gapChoice !== undefined) {
-      const gd = state.practice.gapData;
-      const correct = gapChoice === gd.answer;
-      document.getElementById("compare-feedback").textContent = correct
-        ? `✅ Correct! ${gd.explanation}`
-        : `❌ Not quite — "${gd.answer}" fits best. ${gd.explanation}`;
-      document.querySelectorAll("[data-gap-choice]").forEach(b => b.disabled = true);
+    if (chip && chip.dataset.practice === "rebuild-bank") {
+      placeIntoRebuild(chip.dataset.word);
       return;
     }
-    if (action === "compare-next") { loadPracticeSentence("compare"); return; }
+    if (chip && chip.dataset.practice === "sort-bank") {
+      const entry = extractSortChipEntry(chip);
+      if (!entry) return;
+      state.practice.selectedWord = entry;
+      el.practiceCard.querySelectorAll(".draggable[data-practice='sort-bank']").forEach((n) => n.classList.toggle("active", Number(n.dataset.id) === entry.id));
+      return;
+    }
+    if (bin && state.practice.selectedWord) {
+      placeIntoSortBin(state.practice.selectedWord.id, bin.dataset.bin);
+      state.practice.selectedWord = null;
+    }
+  });
+}
+
+function wirePracticeDropZones() {
+  const rebuildZone = document.getElementById("rebuild-zone");
+  if (rebuildZone) {
+    rebuildZone.addEventListener("dragover", (e) => e.preventDefault());
+  }
+  document.querySelectorAll(".bin").forEach((bin) => {
+    bin.addEventListener("dragover", (e) => e.preventDefault());
   });
 }
 
